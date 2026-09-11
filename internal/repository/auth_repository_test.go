@@ -41,7 +41,7 @@ func TestAuthRepository(t *testing.T) {
 
 		// Test Duplicate Email
 		err = repo.CreateUser(ctx, &auth.User{Email: "test@example.com", PasswordHash: "other"})
-		assert.ErrorIs(t, err, repository.ErrUserAlreadyExists)
+		assert.ErrorIs(t, err, auth.ErrUserAlreadyExists)
 
 		// Get User
 		fetchedUser, err := repo.GetUserByEmail(ctx, "test@example.com")
@@ -51,7 +51,7 @@ func TestAuthRepository(t *testing.T) {
 
 		// Get Non-Existent
 		_, err = repo.GetUserByEmail(ctx, "nonexistent@example.com")
-		assert.ErrorIs(t, err, repository.ErrUserNotFound)
+		assert.ErrorIs(t, err, auth.ErrUserNotFound)
 	})
 
 	t.Run("Refresh Tokens", func(t *testing.T) {
@@ -88,6 +88,6 @@ func TestAuthRepository(t *testing.T) {
 
 		// Revoke Non-Existent Token
 		err = repo.RevokeRefreshToken(ctx, "invalid_hash")
-		assert.ErrorIs(t, err, repository.ErrTokenNotFound)
+		assert.ErrorIs(t, err, auth.ErrTokenNotFound)
 	})
 }

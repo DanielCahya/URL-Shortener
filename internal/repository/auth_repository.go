@@ -11,25 +11,13 @@ import (
 	"github.com/DanielCahya/url-shortener/internal/auth"
 )
 
-var (
-	ErrUserAlreadyExists = errors.New("user with this email already exists")
-	ErrUserNotFound      = errors.New("user not found")
-	ErrTokenNotFound     = errors.New("refresh token not found")
-)
-
-type AuthRepository interface {
-	CreateUser(ctx context.Context, user *auth.User) error
-	GetUserByEmail(ctx context.Context, email string) (*auth.User, error)
-	CreateRefreshToken(ctx context.Context, token *auth.RefreshToken) error
-	GetRefreshTokenByHash(ctx context.Context, hash string) (*auth.RefreshToken, error)
-	RevokeRefreshToken(ctx context.Context, hash string) error
-}
+// Interface and errors have been moved to the auth package to avoid import cycles.
 
 type postgresAuthRepository struct {
 	pool *pgxpool.Pool
 }
 
-func NewPostgresAuthRepository(pool *pgxpool.Pool) AuthRepository {
+func NewPostgresAuthRepository(pool *pgxpool.Pool) auth.AuthRepository {
 	return &postgresAuthRepository{pool: pool}
 }
 
@@ -45,7 +33,7 @@ func (r *postgresAuthRepository) CreateUser(ctx context.Context, user *auth.User
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" { // unique_violation
-			return ErrUserAlreadyExists
+			return auth.ErrUserAlreadyExists
 		}
 		return err
 	}
@@ -64,7 +52,7 @@ func (r *postgresAuthRepository) GetUserByEmail(ctx context.Context, email strin
 		
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrUserNotFound
+			return nil, auth.ErrUserNotFound
 		}
 		return nil, err
 	}
@@ -94,7 +82,7 @@ func (r *postgresAuthRepository) GetRefreshTokenByHash(ctx context.Context, hash
 		
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrTokenNotFound
+			return nil, auth.ErrTokenNotFound
 		}
 		return nil, err
 	}
@@ -112,7 +100,7 @@ func (r *postgresAuthRepository) RevokeRefreshToken(ctx context.Context, hash st
 		return err
 	}
 	if cmdTag.RowsAffected() == 0 {
-		return ErrTokenNotFound
+		return auth.ErrTokenNotFound
 	}
 	return nil
 }

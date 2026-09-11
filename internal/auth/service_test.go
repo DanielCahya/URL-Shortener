@@ -1,0 +1,81 @@
+package auth_test
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/DanielCahya/url-shortener/internal/auth"
+)
+
+type mockAuthRepo struct {
+	users map[string]*auth.User
+}
+
+func (m *mockAuthRepo) CreateUser(ctx context.Context, user *auth.User) error {
+	if _, exists := m.users[user.Email]; exists {
+		return auth.ErrUserAlreadyExists
+	}
+	user.ID = uuid.New()
+	user.CreatedAt = time.Now()
+	user.UpdatedAt = time.Now()
+	m.users[user.Email] = user
+	return nil
+}
+
+func (m *mockAuthRepo) GetUserByEmail(ctx context.Context, email string) (*auth.User, error) {
+	if user, exists := m.users[email]; exists {
+		return user, nil
+	}
+	return nil, auth.ErrUserNotFound
+}
+
+func (m *mockAuthRepo) CreateRefreshToken(ctx context.Context, token *auth.RefreshToken) error {
+	return nil
+}
+
+func (m *mockAuthRepo) GetRefreshTokenByHash(ctx context.Context, hash string) (*auth.RefreshToken, error) {
+	return nil, auth.ErrTokenNotFound
+}
+
+func (m *mockAuthRepo) RevokeRefreshToken(ctx context.Context, hash string) error {
+	return nil
+}
+
+func TestAuthService_Register(t *testing.T) {
+	repo := &mockAuthRepo{users: make(map[string]*auth.User)}
+	svc := auth.NewAuthService(repo, nil)
+
+	ctx := context.Background()
+
+	t.Run("Valid Registration", func(t *testing.T) {
+		req := auth.RegisterRequest{Email: "test@example.com", Password: "securepassword"}
+		user, err := svc.Register(ctx, req)
+		require.NoError(t, err)
+		assert.Equal(t, "test@example.com", user.Email)
+		assert.NotEqual(t, uuid.Nil, user.ID)
+		assert.NotEmpty(t, user.PasswordHash)
+	})
+
+	t.Run("Invalid Email", func(t *testing.T) {
+		req := auth.RegisterRequest{Email: "invalid", Password: "securepassword"}
+		_, err := svc.Register(ctx, req)
+		assert.ErrorIs(t, err, auth.ErrInvalidEmail)
+	})
+
+	t.Run("Short Password", func(t *testing.T) {
+		req := auth.RegisterRequest{Email: "test2@example.com", Password: "short"}
+		_, err := svc.Register(ctx, req)
+		assert.ErrorIs(t, err, auth.ErrPasswordTooShort)
+	})
+
+	t.Run("Duplicate Email", func(t *testing.T) {
+		req := auth.RegisterRequest{Email: "test@example.com", Password: "anotherpassword"}
+		_, err := svc.Register(ctx, req)
+		assert.ErrorIs(t, err, auth.ErrUserAlreadyExists)
+	})
+}

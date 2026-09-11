@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/DanielCahya/url-shortener/internal/auth"
 	"github.com/DanielCahya/url-shortener/internal/config"
 	"github.com/DanielCahya/url-shortener/internal/handler"
 	"github.com/DanielCahya/url-shortener/internal/logger"
@@ -56,12 +57,15 @@ func main() {
 
 	// 5. Repository construction
 	urlRepo := repository.NewPostgresURLRepository(dbPool)
+	authRepo := repository.NewPostgresAuthRepository(dbPool)
 
 	// 6. Service construction
 	urlService := url.NewService(urlRepo, cfg.BaseURL)
+	authService := auth.NewAuthService(authRepo, nil) // no tokenService needed for register
 
 	// 7. Handler construction
 	urlHandler := url.NewHandler(urlService)
+	authHandler := auth.NewAuthHandler(authService)
 	healthHandler := handler.NewHealthHandler(dbPool)
 
 	// 8. Router and Middleware construction
@@ -74,6 +78,7 @@ func main() {
 	r.Get("/health/live", healthHandler.Live)
 	r.Get("/health/ready", healthHandler.Ready)
 	r.Post("/api/v1/urls", urlHandler.Create)
+	r.Post("/api/v1/auth/register", authHandler.RegisterUser)
 	r.Get("/{short_code}", urlHandler.Redirect)
 
 	// 9. HTTP server startup
