@@ -109,6 +109,28 @@ func (h *AuthHandler) LogoutUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
+	userID, ok := UserIDFromContext(r.Context())
+	if !ok {
+		h.respondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	profile, err := h.service.GetProfile(r.Context(), userID)
+	if err != nil {
+		if err.Error() == "user not found" {
+			h.respondWithError(w, http.StatusNotFound, "User not found")
+			return
+		}
+		h.respondWithError(w, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(profile)
+}
+
 func (h *AuthHandler) respondWithError(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)

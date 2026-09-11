@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 var (
@@ -17,6 +19,7 @@ type AuthService interface {
 	Login(ctx context.Context, req LoginRequest) (*TokenResponse, error)
 	RefreshToken(ctx context.Context, req RefreshRequest) (*TokenResponse, error)
 	Logout(ctx context.Context, req LogoutRequest) error
+	GetProfile(ctx context.Context, userID uuid.UUID) (*UserProfileResponse, error)
 }
 
 type authService struct {
@@ -159,4 +162,17 @@ func (s *authService) Logout(ctx context.Context, req LogoutRequest) error {
 	}
 	
 	return nil
+}
+
+func (s *authService) GetProfile(ctx context.Context, userID uuid.UUID) (*UserProfileResponse, error) {
+	user, err := s.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &UserProfileResponse{
+		ID:        user.ID,
+		Email:     user.Email,
+		CreatedAt: user.CreatedAt,
+	}, nil
 }

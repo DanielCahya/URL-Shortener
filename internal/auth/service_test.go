@@ -35,6 +35,15 @@ func (m *mockAuthRepo) GetUserByEmail(ctx context.Context, email string) (*auth.
 	return nil, auth.ErrUserNotFound
 }
 
+func (m *mockAuthRepo) GetUserByID(ctx context.Context, id uuid.UUID) (*auth.User, error) {
+	for _, user := range m.users {
+		if user.ID == id {
+			return user, nil
+		}
+	}
+	return nil, auth.ErrUserNotFound
+}
+
 func (m *mockAuthRepo) CreateRefreshToken(ctx context.Context, token *auth.RefreshToken) error {
 	m.tokens[token.TokenHash] = token
 	return nil
@@ -227,5 +236,31 @@ func TestAuthService_Logout(t *testing.T) {
 		err := svc.Logout(ctx, req)
 		// Should succeed idempotently even if not found in mock logic
 		require.NoError(t, err)
+	})
+}
+
+func TestAuthService_GetProfile(t *testing.T) {
+	repo := &mockAuthRepo{
+		users:  make(map[string]*auth.User),
+		tokens: make(map[string]*auth.RefreshToken),
+	}
+	svc := auth.NewAuthService(repo, nil)
+
+	ctx := context.Background()
+
+	userID := uuid.New()
+	user := &auth.User{ID: userID, Email: "profile@example.com"}
+	repo.users[user.Email] = user
+
+	t.Run("Valid Profile", func(t *testing.T) {
+		resp, err := svc.GetProfile(ctx, userID)
+		require.NoError(t, err)
+		assert.Equal(t, userID, resp.ID)
+		assert.Equal(t, "profile@example.com", resp.Email)
+	})
+
+	t.Run("User Not Found", func(t *testing.T) {
+		_, err := svc.GetProfile(ctx, uuid.New())
+		assert.ErrorIs(t, err, auth.ErrUserNotFound)
 	})
 }

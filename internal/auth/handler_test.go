@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/google/uuid"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -20,6 +22,7 @@ type mockAuthService struct {
 	LoginFunc    func(ctx context.Context, req auth.LoginRequest) (*auth.TokenResponse, error)
 	RefreshFunc  func(ctx context.Context, req auth.RefreshRequest) (*auth.TokenResponse, error)
 	LogoutFunc   func(ctx context.Context, req auth.LogoutRequest) error
+	GetProfileFunc func(ctx context.Context, userID uuid.UUID) (*auth.UserProfileResponse, error)
 }
 
 func (m *mockAuthService) Register(ctx context.Context, req auth.RegisterRequest) (*auth.User, error) {
@@ -36,6 +39,10 @@ func (m *mockAuthService) RefreshToken(ctx context.Context, req auth.RefreshRequ
 
 func (m *mockAuthService) Logout(ctx context.Context, req auth.LogoutRequest) error {
 	return m.LogoutFunc(ctx, req)
+}
+
+func (m *mockAuthService) GetProfile(ctx context.Context, userID uuid.UUID) (*auth.UserProfileResponse, error) {
+	return m.GetProfileFunc(ctx, userID)
 }
 
 func TestAuthHandler_RegisterUser(t *testing.T) {
@@ -192,5 +199,36 @@ func TestAuthHandler_LogoutUser(t *testing.T) {
 		handler.LogoutUser(rr, req)
 
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
+	})
+}
+
+func TestAuthHandler_GetProfile(t *testing.T) {
+	mockSvc := &mockAuthService{}
+	handler := auth.NewAuthHandler(mockSvc)
+
+	t.Run("Success", func(t *testing.T) {
+		userID := uuid.New()
+		mockSvc.GetProfileFunc = func(ctx context.Context, uid uuid.UUID) (*auth.UserProfileResponse, error) {
+			return &auth.UserProfileResponse{ID: uid, Email: "test@example.com"}, nil
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+		ctx := context.WithValue(req.Context(), auth.UserIDKey, userID)
+		req = req.WithContext(ctx)
+
+		rr := httptest.NewRecorder()
+		handler.GetProfile(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		var resp auth.UserProfileResponse
+		json.NewDecoder(rr.Body).Decode(&resp)
+		assert.Equal(t, "test@example.com", resp.Email)
+	})
+
+	t.Run("Unauthorized Context Missing", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+		rr := httptest.NewRecorder()
+		handler.GetProfile(rr, req)
+		assert.Equal(t, http.StatusUnauthorized, rr.Code)
 	})
 }
