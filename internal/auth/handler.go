@@ -67,6 +67,28 @@ func (h *AuthHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(tokenResponse)
 }
 
+func (h *AuthHandler) RefreshTokens(w http.ResponseWriter, r *http.Request) {
+	var req RefreshRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	tokenResponse, err := h.service.RefreshToken(r.Context(), req)
+	if err != nil {
+		if err.Error() == "invalid refresh token" || err.Error() == "missing refresh token" {
+			h.respondWithError(w, http.StatusUnauthorized, err.Error())
+			return
+		}
+		h.respondWithError(w, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(tokenResponse)
+}
+
 func (h *AuthHandler) respondWithError(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)

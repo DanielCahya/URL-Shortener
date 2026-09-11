@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -17,6 +18,7 @@ import (
 type mockAuthService struct {
 	RegisterFunc func(ctx context.Context, req auth.RegisterRequest) (*auth.User, error)
 	LoginFunc    func(ctx context.Context, req auth.LoginRequest) (*auth.TokenResponse, error)
+	RefreshFunc  func(ctx context.Context, req auth.RefreshRequest) (*auth.TokenResponse, error)
 }
 
 func (m *mockAuthService) Register(ctx context.Context, req auth.RegisterRequest) (*auth.User, error) {
@@ -25,6 +27,10 @@ func (m *mockAuthService) Register(ctx context.Context, req auth.RegisterRequest
 
 func (m *mockAuthService) Login(ctx context.Context, req auth.LoginRequest) (*auth.TokenResponse, error) {
 	return m.LoginFunc(ctx, req)
+}
+
+func (m *mockAuthService) RefreshToken(ctx context.Context, req auth.RefreshRequest) (*auth.TokenResponse, error) {
+	return m.RefreshFunc(ctx, req)
 }
 
 func TestAuthHandler_RegisterUser(t *testing.T) {
@@ -107,6 +113,44 @@ func TestAuthHandler_LoginUser(t *testing.T) {
 		rr := httptest.NewRecorder()
 
 		handler.LoginUser(rr, req)
+
+		assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	})
+}
+
+func TestAuthHandler_RefreshTokens(t *testing.T) {
+	mockSvc := &mockAuthService{}
+	handler := auth.NewAuthHandler(mockSvc)
+
+	t.Run("Success", func(t *testing.T) {
+		mockSvc.RefreshFunc = func(ctx context.Context, req auth.RefreshRequest) (*auth.TokenResponse, error) {
+			return &auth.TokenResponse{AccessToken: "new-access", RefreshToken: "new-refresh"}, nil
+		}
+
+		body := []byte(`{"refresh_token": "valid_refresh"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+
+		handler.RefreshTokens(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		var resp auth.TokenResponse
+		json.NewDecoder(rr.Body).Decode(&resp)
+		assert.Equal(t, "new-access", resp.AccessToken)
+		assert.Equal(t, "new-refresh", resp.RefreshToken)
+	})
+
+	t.Run("Invalid Token", func(t *testing.T) {
+		mockSvc.RefreshFunc = func(ctx context.Context, req auth.RefreshRequest) (*auth.TokenResponse, error) {
+			return nil, errors.New("invalid refresh token")
+		}
+
+		body := []byte(`{"refresh_token": "invalid_refresh"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", bytes.NewBuffer(body))
+		rr := httptest.NewRecorder()
+
+		handler.RefreshTokens(rr, req)
 
 		assert.Equal(t, http.StatusUnauthorized, rr.Code)
 	})

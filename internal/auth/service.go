@@ -2,7 +2,9 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"strings"
+	"time"
 )
 
 var (
@@ -13,6 +15,7 @@ var (
 type AuthService interface {
 	Register(ctx context.Context, req RegisterRequest) (*User, error)
 	Login(ctx context.Context, req LoginRequest) (*TokenResponse, error)
+	RefreshToken(ctx context.Context, req RefreshRequest) (*TokenResponse, error)
 }
 
 type authService struct {
@@ -86,6 +89,53 @@ func (s *authService) Login(ctx context.Context, req LoginRequest) (*TokenRespon
 
 	err = s.repo.CreateRefreshToken(ctx, refreshToken)
 	if err != nil {
+		return nil, err
+	}
+
+	return &TokenResponse{
+		AccessToken:  tokenPair.AccessToken,
+		RefreshToken: tokenPair.RefreshToken,
+	}, nil
+}
+
+func (s *authService) RefreshToken(ctx context.Context, req RefreshRequest) (*TokenResponse, error) {
+	req.RefreshToken = strings.TrimSpace(req.RefreshToken)
+	if req.RefreshToken == "" {
+		return nil, errors.New("missing refresh token")
+	}
+
+	hash := HashRefreshToken(req.RefreshToken)
+	token, err := s.repo.GetRefreshTokenByHash(ctx, hash)
+	if err != nil {
+		if errors.Is(err, ErrTokenNotFound) {
+			return nil, errors.New("invalid refresh token")
+		}
+		return nil, err
+	}
+
+	// Check if revoked or expired
+	if token.RevokedAt != nil || token.ExpiresAt.Before(time.Now()) {
+		return nil, errors.New("invalid refresh token")
+	}
+
+	// Revoke the old token (rotation)
+	if err := s.repo.RevokeRefreshToken(ctx, hash); err != nil {
+		return nil, err
+	}
+
+	// Generate new token pair
+	tokenPair, err := s.tokenService.GenerateTokenPair(token.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	newRefreshToken := &RefreshToken{
+		UserID:    token.UserID,
+		TokenHash: HashRefreshToken(tokenPair.RefreshToken),
+		ExpiresAt: time.Now().Add(s.tokenService.config.RefreshTTL),
+	}
+
+	if err := s.repo.CreateRefreshToken(ctx, newRefreshToken); err != nil {
 		return nil, err
 	}
 

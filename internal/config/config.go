@@ -20,6 +20,7 @@ type Config struct {
 	DBMaxConnLifetime time.Duration
 	DBMaxConnIdleTime time.Duration
 	LogLevel          string
+	JWTSecret         string
 }
 
 // Load reads configuration from environment variables, falling back to sensible defaults.
@@ -38,6 +39,7 @@ func Load() (*Config, error) {
 		DBMaxConnLifetime: getEnvAsDuration("DB_MAX_CONN_LIFETIME", time.Hour),
 		DBMaxConnIdleTime: getEnvAsDuration("DB_MAX_CONN_IDLE_TIME", 30*time.Minute),
 		LogLevel:          getEnv("LOG_LEVEL", "info"),
+		JWTSecret:         getEnv("JWT_SECRET", "supersecret-dev-key"),
 	}
 
 	if cfg.ServerPort == "" {
@@ -45,6 +47,9 @@ func Load() (*Config, error) {
 	}
 	if cfg.DatabaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL cannot be empty")
+	}
+	if cfg.JWTSecret == "" {
+		return nil, fmt.Errorf("JWT_SECRET cannot be empty")
 	}
 
 	return cfg, nil
