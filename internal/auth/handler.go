@@ -89,6 +89,26 @@ func (h *AuthHandler) RefreshTokens(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(tokenResponse)
 }
 
+func (h *AuthHandler) LogoutUser(w http.ResponseWriter, r *http.Request) {
+	var req LogoutRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	err := h.service.Logout(r.Context(), req)
+	if err != nil {
+		if err.Error() == "missing refresh token" {
+			h.respondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		h.respondWithError(w, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *AuthHandler) respondWithError(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)

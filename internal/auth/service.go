@@ -16,6 +16,7 @@ type AuthService interface {
 	Register(ctx context.Context, req RegisterRequest) (*User, error)
 	Login(ctx context.Context, req LoginRequest) (*TokenResponse, error)
 	RefreshToken(ctx context.Context, req RefreshRequest) (*TokenResponse, error)
+	Logout(ctx context.Context, req LogoutRequest) error
 }
 
 type authService struct {
@@ -143,4 +144,19 @@ func (s *authService) RefreshToken(ctx context.Context, req RefreshRequest) (*To
 		AccessToken:  tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
 	}, nil
+}
+
+func (s *authService) Logout(ctx context.Context, req LogoutRequest) error {
+	req.RefreshToken = strings.TrimSpace(req.RefreshToken)
+	if req.RefreshToken == "" {
+		return errors.New("missing refresh token")
+	}
+
+	hash := HashRefreshToken(req.RefreshToken)
+	err := s.repo.RevokeRefreshToken(ctx, hash)
+	if err != nil && !errors.Is(err, ErrTokenNotFound) {
+		return err
+	}
+	
+	return nil
 }

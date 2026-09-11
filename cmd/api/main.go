@@ -87,6 +87,7 @@ func main() {
 	r.Post("/api/v1/auth/register", authHandler.RegisterUser)
 	r.Post("/api/v1/auth/login", authHandler.LoginUser)
 	r.Post("/api/v1/auth/refresh", authHandler.RefreshTokens)
+	r.Post("/api/v1/auth/logout", authHandler.LogoutUser)
 	r.Get("/{short_code}", urlHandler.Redirect)
 
 	// 9. HTTP server startup

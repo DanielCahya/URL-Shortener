@@ -191,3 +191,41 @@ func TestAuthService_RefreshToken(t *testing.T) {
 		assert.ErrorContains(t, err, "invalid refresh token")
 	})
 }
+
+func TestAuthService_Logout(t *testing.T) {
+	repo := &mockAuthRepo{
+		users:  make(map[string]*auth.User),
+		tokens: make(map[string]*auth.RefreshToken),
+	}
+	svc := auth.NewAuthService(repo, nil)
+
+	ctx := context.Background()
+
+	userID := uuid.New()
+	hash := auth.HashRefreshToken("valid_refresh")
+	repo.tokens[hash] = &auth.RefreshToken{
+		UserID:    userID,
+		TokenHash: hash,
+		ExpiresAt: time.Now().Add(time.Hour),
+	}
+
+	t.Run("Valid Logout", func(t *testing.T) {
+		req := auth.LogoutRequest{RefreshToken: "valid_refresh"}
+		err := svc.Logout(ctx, req)
+		require.NoError(t, err)
+		assert.NotNil(t, repo.tokens[hash].RevokedAt)
+	})
+
+	t.Run("Missing Token", func(t *testing.T) {
+		req := auth.LogoutRequest{RefreshToken: ""}
+		err := svc.Logout(ctx, req)
+		assert.ErrorContains(t, err, "missing refresh token")
+	})
+
+	t.Run("Unknown Token", func(t *testing.T) {
+		req := auth.LogoutRequest{RefreshToken: "unknown"}
+		err := svc.Logout(ctx, req)
+		// Should succeed idempotently even if not found in mock logic
+		require.NoError(t, err)
+	})
+}

@@ -47,3 +47,8 @@ type TokenResponse struct {
 type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }
+
+// LogoutRequest represents the payload to log a user out.
+type LogoutRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}

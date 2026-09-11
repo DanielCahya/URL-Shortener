@@ -19,6 +19,7 @@ type mockAuthService struct {
 	RegisterFunc func(ctx context.Context, req auth.RegisterRequest) (*auth.User, error)
 	LoginFunc    func(ctx context.Context, req auth.LoginRequest) (*auth.TokenResponse, error)
 	RefreshFunc  func(ctx context.Context, req auth.RefreshRequest) (*auth.TokenResponse, error)
+	LogoutFunc   func(ctx context.Context, req auth.LogoutRequest) error
 }
 
 func (m *mockAuthService) Register(ctx context.Context, req auth.RegisterRequest) (*auth.User, error) {
@@ -31,6 +32,10 @@ func (m *mockAuthService) Login(ctx context.Context, req auth.LoginRequest) (*au
 
 func (m *mockAuthService) RefreshToken(ctx context.Context, req auth.RefreshRequest) (*auth.TokenResponse, error) {
 	return m.RefreshFunc(ctx, req)
+}
+
+func (m *mockAuthService) Logout(ctx context.Context, req auth.LogoutRequest) error {
+	return m.LogoutFunc(ctx, req)
 }
 
 func TestAuthHandler_RegisterUser(t *testing.T) {
@@ -153,5 +158,39 @@ func TestAuthHandler_RefreshTokens(t *testing.T) {
 		handler.RefreshTokens(rr, req)
 
 		assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	})
+}
+
+func TestAuthHandler_LogoutUser(t *testing.T) {
+	mockSvc := &mockAuthService{}
+	handler := auth.NewAuthHandler(mockSvc)
+
+	t.Run("Success", func(t *testing.T) {
+		mockSvc.LogoutFunc = func(ctx context.Context, req auth.LogoutRequest) error {
+			return nil
+		}
+
+		body := []byte(`{"refresh_token": "valid_refresh"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+
+		handler.LogoutUser(rr, req)
+
+		assert.Equal(t, http.StatusNoContent, rr.Code)
+	})
+
+	t.Run("Missing Token", func(t *testing.T) {
+		mockSvc.LogoutFunc = func(ctx context.Context, req auth.LogoutRequest) error {
+			return errors.New("missing refresh token")
+		}
+
+		body := []byte(`{"refresh_token": ""}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", bytes.NewBuffer(body))
+		rr := httptest.NewRecorder()
+
+		handler.LogoutUser(rr, req)
+
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
 	})
 }
