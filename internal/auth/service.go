@@ -12,7 +12,7 @@ var (
 
 type AuthService interface {
 	Register(ctx context.Context, req RegisterRequest) (*User, error)
-	// We'll add Login here in later steps
+	Login(ctx context.Context, req LoginRequest) (*TokenResponse, error)
 }
 
 type authService struct {
@@ -53,4 +53,44 @@ func (s *authService) Register(ctx context.Context, req RegisterRequest) (*User,
 	}
 
 	return user, nil
+}
+
+func (s *authService) Login(ctx context.Context, req LoginRequest) (*TokenResponse, error) {
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+	if req.Email == "" {
+		return nil, ErrInvalidEmail
+	}
+
+	user, err := s.repo.GetUserByEmail(ctx, req.Email)
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			return nil, errors.New("invalid email or password") // Obfuscate error
+		}
+		return nil, err
+	}
+
+	if !CheckPasswordHash(req.Password, user.PasswordHash) {
+		return nil, errors.New("invalid email or password")
+	}
+
+	tokenPair, err := s.tokenService.GenerateTokenPair(user.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	refreshToken := &RefreshToken{
+		UserID:    user.ID,
+		TokenHash: HashRefreshToken(tokenPair.RefreshToken),
+		ExpiresAt: time.Now().Add(s.tokenService.config.RefreshTTL),
+	}
+
+	err = s.repo.CreateRefreshToken(ctx, refreshToken)
+	if err != nil {
+		return nil, err
+	}
+
+	return &TokenResponse{
+		AccessToken:  tokenPair.AccessToken,
+		RefreshToken: tokenPair.RefreshToken,
+	}, nil
 }

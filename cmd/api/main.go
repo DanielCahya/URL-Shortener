@@ -60,8 +60,14 @@ func main() {
 	authRepo := repository.NewPostgresAuthRepository(dbPool)
 
 	// 6. Service construction
+	tokenService := auth.NewTokenService(auth.JWTConfig{
+		SecretKey:  cfg.JWTSecret,
+		AccessTTL:  15 * time.Minute,
+		RefreshTTL: 7 * 24 * time.Hour,
+		Issuer:     "url-shortener",
+	})
 	urlService := url.NewService(urlRepo, cfg.BaseURL)
-	authService := auth.NewAuthService(authRepo, nil) // no tokenService needed for register
+	authService := auth.NewAuthService(authRepo, tokenService) // no tokenService needed for register
 
 	// 7. Handler construction
 	urlHandler := url.NewHandler(urlService)
@@ -79,6 +85,7 @@ func main() {
 	r.Get("/health/ready", healthHandler.Ready)
 	r.Post("/api/v1/urls", urlHandler.Create)
 	r.Post("/api/v1/auth/register", authHandler.RegisterUser)
+	r.Post("/api/v1/auth/login", authHandler.LoginUser)
 	r.Get("/{short_code}", urlHandler.Redirect)
 
 	// 9. HTTP server startup

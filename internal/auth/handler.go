@@ -44,6 +44,29 @@ func (h *AuthHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
+func (h *AuthHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
+	var req LoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	tokenResponse, err := h.service.Login(r.Context(), req)
+	if err != nil {
+		if err.Error() == "invalid email or password" {
+			h.respondWithError(w, http.StatusUnauthorized, err.Error())
+			return
+		}
+		// Internal Error
+		h.respondWithError(w, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(tokenResponse)
+}
+
 func (h *AuthHandler) respondWithError(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)

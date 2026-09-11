@@ -16,10 +16,15 @@ import (
 
 type mockAuthService struct {
 	RegisterFunc func(ctx context.Context, req auth.RegisterRequest) (*auth.User, error)
+	LoginFunc    func(ctx context.Context, req auth.LoginRequest) (*auth.TokenResponse, error)
 }
 
 func (m *mockAuthService) Register(ctx context.Context, req auth.RegisterRequest) (*auth.User, error) {
 	return m.RegisterFunc(ctx, req)
+}
+
+func (m *mockAuthService) Login(ctx context.Context, req auth.LoginRequest) (*auth.TokenResponse, error) {
+	return m.LoginFunc(ctx, req)
 }
 
 func TestAuthHandler_RegisterUser(t *testing.T) {
@@ -67,5 +72,42 @@ func TestAuthHandler_RegisterUser(t *testing.T) {
 		handler.RegisterUser(rr, req)
 
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
+	})
+}
+
+func TestAuthHandler_LoginUser(t *testing.T) {
+	mockSvc := &mockAuthService{}
+	handler := auth.NewAuthHandler(mockSvc)
+
+	t.Run("Success", func(t *testing.T) {
+		mockSvc.LoginFunc = func(ctx context.Context, req auth.LoginRequest) (*auth.TokenResponse, error) {
+			return &auth.TokenResponse{AccessToken: "access", RefreshToken: "refresh"}, nil
+		}
+
+		body := []byte(`{"email": "test@example.com", "password": "securepassword"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+
+		handler.LoginUser(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		var resp auth.TokenResponse
+		json.NewDecoder(rr.Body).Decode(&resp)
+		assert.Equal(t, "access", resp.AccessToken)
+	})
+
+	t.Run("Invalid Credentials", func(t *testing.T) {
+		mockSvc.LoginFunc = func(ctx context.Context, req auth.LoginRequest) (*auth.TokenResponse, error) {
+			return nil, errors.New("invalid email or password")
+		}
+
+		body := []byte(`{"email": "test@example.com", "password": "wrongpassword"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(body))
+		rr := httptest.NewRecorder()
+
+		handler.LoginUser(rr, req)
+
+		assert.Equal(t, http.StatusUnauthorized, rr.Code)
 	})
 }

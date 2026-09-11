@@ -79,3 +79,41 @@ func TestAuthService_Register(t *testing.T) {
 		assert.ErrorIs(t, err, auth.ErrUserAlreadyExists)
 	})
 }
+
+func TestAuthService_Login(t *testing.T) {
+	repo := &mockAuthRepo{users: make(map[string]*auth.User)}
+	tokenService := auth.NewTokenService(auth.JWTConfig{
+		SecretKey:  "secret",
+		AccessTTL:  time.Minute,
+		RefreshTTL: time.Hour,
+		Issuer:     "test",
+	})
+	svc := auth.NewAuthService(repo, tokenService)
+
+	ctx := context.Background()
+
+	// Seed user
+	hash, _ := auth.HashPassword("securepassword")
+	user := &auth.User{ID: uuid.New(), Email: "test@example.com", PasswordHash: hash}
+	repo.users[user.Email] = user
+
+	t.Run("Valid Login", func(t *testing.T) {
+		req := auth.LoginRequest{Email: "test@example.com", Password: "securepassword"}
+		resp, err := svc.Login(ctx, req)
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp.AccessToken)
+		assert.NotEmpty(t, resp.RefreshToken)
+	})
+
+	t.Run("Invalid Password", func(t *testing.T) {
+		req := auth.LoginRequest{Email: "test@example.com", Password: "wrongpassword"}
+		_, err := svc.Login(ctx, req)
+		assert.ErrorContains(t, err, "invalid email or password")
+	})
+
+	t.Run("User Not Found", func(t *testing.T) {
+		req := auth.LoginRequest{Email: "notfound@example.com", Password: "securepassword"}
+		_, err := svc.Login(ctx, req)
+		assert.ErrorContains(t, err, "invalid email or password")
+	})
+}
