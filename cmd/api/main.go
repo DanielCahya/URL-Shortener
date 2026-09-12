@@ -78,7 +78,9 @@ func main() {
 		RefreshTTL: 7 * 24 * time.Hour,
 		Issuer:     "url-shortener",
 	})
-	urlService := url.NewService(urlRepo, cfg.BaseURL)
+	
+	urlCache := cache.NewRedisURLCache(redisClient)
+	urlService := url.NewService(urlRepo, urlCache, cfg.BaseURL)
 	authService := auth.NewAuthService(authRepo, tokenService) // no tokenService needed for register
 
 	// 7. Handler construction

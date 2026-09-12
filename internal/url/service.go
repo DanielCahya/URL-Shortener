@@ -30,13 +30,15 @@ type Service interface {
 
 type service struct {
 	repo    Repository
+	cache   Cache
 	baseURL string
 }
 
-// NewService creates a new URL service instance.
-func NewService(repo Repository, baseURL string) Service {
+// NewService creates a new URL service.
+func NewService(repo Repository, cache Cache, baseURL string) Service {
 	return &service{
 		repo:    repo,
+		cache:   cache,
 		baseURL: strings.TrimRight(baseURL, "/"),
 	}
 }
@@ -131,14 +133,29 @@ func (s *service) ResolveURL(ctx context.Context, shortCode string) (string, err
 		return "", ErrNotFound
 	}
 
+	// 1. Try to fetch from cache first
+	if s.cache != nil {
+		cachedURL, err := s.cache.GetOriginalURL(ctx, code)
+		if err == nil {
+			return cachedURL, nil
+		}
+		// On cache miss, we proceed to DB
+	}
+
+	// 2. Cache miss, fetch from database
 	u, err := s.repo.GetByShortCode(ctx, code)
 	if err != nil {
 		return "", err
 	}
 
-	// Check expiration
+	// 3. Check expiration
 	if u.ExpiresAt != nil && time.Now().UTC().After(*u.ExpiresAt) {
 		return "", ErrExpired
+	}
+
+	// 4. Update cache asynchronously (or synchronously) to speed up future requests
+	if s.cache != nil {
+		_ = s.cache.SetOriginalURL(ctx, code, u.OriginalURL) // ignore error on set
 	}
 
 	return u.OriginalURL, nil

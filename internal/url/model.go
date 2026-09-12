@@ -16,6 +16,7 @@ var (
 	ErrReservedAlias        = errors.New("custom alias is a reserved system keyword")
 	ErrExpirationInPast     = errors.New("expiration date must be in the future")
 	ErrGenerationCollision  = errors.New("failed to generate unique short code after retries")
+	ErrCacheMiss            = errors.New("cache miss")
 )
 
 // URL represents the core URL entity.
