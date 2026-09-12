@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/DanielCahya/url-shortener/internal/auth"
+	"github.com/DanielCahya/url-shortener/internal/cache"
 	"github.com/DanielCahya/url-shortener/internal/config"
 	"github.com/DanielCahya/url-shortener/internal/handler"
 	"github.com/DanielCahya/url-shortener/internal/logger"
@@ -55,7 +56,18 @@ func main() {
 	}
 	log.Info("database migrations verified and applied")
 
-	// 5. Repository construction
+	// 5. Initialize Redis Client
+	redisClient, err := cache.NewRedisClient(cfg.RedisAddr)
+	if err != nil {
+		log.Error("failed to connect to redis", slog.String("error", err.Error()))
+		// Optionally we could exit, but maybe we want the app to start even if redis is down.
+		// However, for this demo we'll exit on failure to ensure environment is fully healthy.
+		os.Exit(1)
+	}
+	defer redisClient.Close()
+	log.Info("connected to Redis successfully")
+
+	// 6. Repository construction
 	urlRepo := repository.NewPostgresURLRepository(dbPool)
 	authRepo := repository.NewPostgresAuthRepository(dbPool)
 
