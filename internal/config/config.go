@@ -21,6 +21,7 @@ type Config struct {
 	DBMaxConnIdleTime time.Duration
 	LogLevel          string
 	JWTSecret         string
+	RedisAddr         string
 }
 
 // Load reads configuration from environment variables, falling back to sensible defaults.
@@ -40,6 +41,7 @@ func Load() (*Config, error) {
 		DBMaxConnIdleTime: getEnvAsDuration("DB_MAX_CONN_IDLE_TIME", 30*time.Minute),
 		LogLevel:          getEnv("LOG_LEVEL", "info"),
 		JWTSecret:         getEnv("JWT_SECRET", "supersecret-dev-key"),
+		RedisAddr:         getEnv("REDIS_ADDR", "localhost:6379"),
 	}
 
 	if cfg.ServerPort == "" {
