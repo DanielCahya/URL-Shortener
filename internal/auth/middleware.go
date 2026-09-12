@@ -41,6 +41,36 @@ func RequireAuth(tokenService *TokenService) func(http.Handler) http.Handler {
 	}
 }
 
+// OptionalAuth is a middleware that parses the Bearer token if present and extracts the user ID.
+// Unlike RequireAuth, it does not return an error if the token is missing or invalid.
+func OptionalAuth(tokenService *TokenService) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			authHeader := r.Header.Get("Authorization")
+			if authHeader == "" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			tokenString := parts[1]
+			userID, err := tokenService.ValidateAccessToken(tokenString)
+			if err != nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			ctx := context.WithValue(r.Context(), UserIDKey, userID)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
 // UserIDFromContext retrieves the user ID from the request context.
 func UserIDFromContext(ctx context.Context) (uuid.UUID, bool) {
 	userID, ok := ctx.Value(UserIDKey).(uuid.UUID)

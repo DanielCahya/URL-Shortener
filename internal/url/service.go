@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DanielCahya/url-shortener/internal/auth"
 	"github.com/google/uuid"
 )
 
@@ -74,6 +75,10 @@ func (s *service) CreateURL(ctx context.Context, req CreateURLRequest) (*URLResp
 			UpdatedAt:   now,
 		}
 
+		if userID, ok := auth.UserIDFromContext(ctx); ok {
+			u.UserID = &userID
+		}
+
 		if err := s.repo.Create(ctx, u); err != nil {
 			if errors.Is(err, ErrAliasAlreadyExists) {
 				return nil, ErrAliasAlreadyExists
@@ -98,6 +103,10 @@ func (s *service) CreateURL(ctx context.Context, req CreateURLRequest) (*URLResp
 			ExpiresAt:   req.ExpiresAt,
 			CreatedAt:   now,
 			UpdatedAt:   now,
+		}
+
+		if userID, ok := auth.UserIDFromContext(ctx); ok {
+			u.UserID = &userID
 		}
 
 		err = s.repo.Create(ctx, u)

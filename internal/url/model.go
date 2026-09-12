@@ -3,6 +3,8 @@ package url
 import (
 	"errors"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 var (
@@ -19,7 +21,7 @@ var (
 // URL represents the core URL entity.
 type URL struct {
 	ID          string     `json:"id"`
-	UserID      *string    `json:"user_id,omitempty"`
+	UserID      *uuid.UUID `json:"user_id,omitempty"`
 	ShortCode   string     `json:"short_code"`
 	OriginalURL string     `json:"original_url"`
 	ExpiresAt   *time.Time `json:"expires_at"`

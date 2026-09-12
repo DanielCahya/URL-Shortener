@@ -83,7 +83,7 @@ func main() {
 	// Register Routes
 	r.Get("/health/live", healthHandler.Live)
 	r.Get("/health/ready", healthHandler.Ready)
-	r.Post("/api/v1/urls", urlHandler.Create)
+	r.With(auth.OptionalAuth(tokenService)).Post("/api/v1/urls", urlHandler.Create)
 	r.Post("/api/v1/auth/register", authHandler.RegisterUser)
 	r.Post("/api/v1/auth/login", authHandler.LoginUser)
 	r.Post("/api/v1/auth/refresh", authHandler.RefreshTokens)
