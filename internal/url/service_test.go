@@ -5,6 +5,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type mockRepository struct {
@@ -46,6 +48,23 @@ func (m *mockRepository) GetByShortCode(ctx context.Context, shortCode string) (
 		return nil, ErrNotFound
 	}
 	return u, nil
+}
+
+func (m *mockRepository) Delete(ctx context.Context, shortCode string, userID uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	u, exists := m.urls[shortCode]
+	if !exists {
+		return ErrNotFound
+	}
+
+	if u.UserID == nil || *u.UserID != userID {
+		return ErrNotFound // Or unauthorized, but ErrNotFound is what we return if rows = 0
+	}
+
+	delete(m.urls, shortCode)
+	return nil
 }
 
 func TestService_CreateURL(t *testing.T) {

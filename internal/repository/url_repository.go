@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/DanielCahya/url-shortener/internal/url"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,6 +16,7 @@ import (
 type URLRepository interface {
 	Create(ctx context.Context, u *url.URL) error
 	GetByShortCode(ctx context.Context, shortCode string) (*url.URL, error)
+	Delete(ctx context.Context, shortCode string, userID uuid.UUID) error
 }
 
 type postgresURLRepository struct {
@@ -79,4 +81,22 @@ func (r *postgresURLRepository) GetByShortCode(ctx context.Context, shortCode st
 	}
 
 	return &u, nil
+}
+
+func (r *postgresURLRepository) Delete(ctx context.Context, shortCode string, userID uuid.UUID) error {
+	query := `
+		UPDATE urls
+		SET deleted_at = NOW()
+		WHERE short_code = $1 AND user_id = $2 AND deleted_at IS NULL
+	`
+	cmdTag, err := r.pool.Exec(ctx, query, shortCode, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete url: %w", err)
+	}
+
+	if cmdTag.RowsAffected() == 0 {
+		return url.ErrNotFound
+	}
+
+	return nil
 }

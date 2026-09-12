@@ -103,6 +103,7 @@ func main() {
 	r.Post("/api/v1/auth/refresh", authHandler.RefreshTokens)
 	r.Post("/api/v1/auth/logout", authHandler.LogoutUser)
 	r.With(auth.RequireAuth(tokenService)).Get("/api/v1/auth/me", authHandler.GetProfile)
+	r.With(auth.RequireAuth(tokenService)).Delete("/api/v1/urls/{short_code}", urlHandler.Delete)
 	r.Get("/{short_code}", urlHandler.Redirect)
 
 	// 9. HTTP server startup

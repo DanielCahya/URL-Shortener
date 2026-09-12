@@ -14,6 +14,7 @@ import (
 
 var (
 	ErrInvalidToken = errors.New("invalid or expired token")
+	ErrUnauthorized = errors.New("unauthorized access")
 )
 
 // JWTConfig holds configuration for generating and validating tokens.

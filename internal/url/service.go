@@ -16,16 +16,18 @@ const (
 	MaxCollisionRetries = 5
 )
 
-// Repository defines the persistence interface required by URLService.
+// Repository defines the data access methods for URL entities.
 type Repository interface {
-	Create(ctx context.Context, u *URL) error
+	Create(ctx context.Context, url *URL) error
 	GetByShortCode(ctx context.Context, shortCode string) (*URL, error)
+	Delete(ctx context.Context, shortCode string, userID uuid.UUID) error
 }
 
-// Service defines business operations for URLs.
+// Service defines the business logic for URL operations.
 type Service interface {
 	CreateURL(ctx context.Context, req CreateURLRequest) (*URLResponse, error)
 	ResolveURL(ctx context.Context, shortCode string) (string, error)
+	DeleteURL(ctx context.Context, shortCode string) error
 }
 
 type service struct {
@@ -159,6 +161,32 @@ func (s *service) ResolveURL(ctx context.Context, shortCode string) (string, err
 	}
 
 	return u.OriginalURL, nil
+}
+
+func (s *service) DeleteURL(ctx context.Context, shortCode string) error {
+	code := strings.TrimSpace(shortCode)
+	if code == "" {
+		return ErrNotFound
+	}
+
+	// 1. Get user ID from context
+	userID, ok := auth.UserIDFromContext(ctx)
+	if !ok {
+		return auth.ErrUnauthorized
+	}
+
+	// 2. Delete from DB (ensures ownership)
+	err := s.repo.Delete(ctx, code, userID)
+	if err != nil {
+		return err
+	}
+
+	// 3. Invalidate Cache
+	if s.cache != nil {
+		_ = s.cache.DeleteOriginalURL(ctx, code) // best effort
+	}
+
+	return nil
 }
 
 func (s *service) toResponse(u *URL) *URLResponse {

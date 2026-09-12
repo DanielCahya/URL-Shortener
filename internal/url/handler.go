@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/DanielCahya/url-shortener/internal/auth"
 	"github.com/DanielCahya/url-shortener/internal/middleware"
 	"github.com/go-chi/chi/v5"
 )
@@ -75,6 +76,30 @@ func (h *Handler) Redirect(w http.ResponseWriter, r *http.Request) {
 
 	// 307 Temporary Redirect preserves HTTP method and indicates temporary location
 	http.Redirect(w, r, targetURL, http.StatusTemporaryRedirect)
+}
+
+// Delete handles requests to delete a short URL.
+func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	shortCode := chi.URLParam(r, "short_code")
+	if shortCode == "" {
+		h.writeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "Short code is required")
+		return
+	}
+
+	err := h.service.DeleteURL(r.Context(), shortCode)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrNotFound):
+			h.writeError(w, r, http.StatusNotFound, "URL_NOT_FOUND", "The requested URL does not exist or you do not have permission to delete it")
+		case errors.Is(err, auth.ErrUnauthorized):
+			h.writeError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "You must be logged in to delete URLs")
+		default:
+			h.writeError(w, r, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "An internal error occurred")
+		}
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, status int, code, message string) {

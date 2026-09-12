@@ -16,6 +16,7 @@ import (
 type mockService struct {
 	createFunc  func(ctx context.Context, req CreateURLRequest) (*URLResponse, error)
 	resolveFunc func(ctx context.Context, shortCode string) (string, error)
+	deleteFunc  func(ctx context.Context, shortCode string) error
 }
 
 func (m *mockService) CreateURL(ctx context.Context, req CreateURLRequest) (*URLResponse, error) {
@@ -30,6 +31,13 @@ func (m *mockService) ResolveURL(ctx context.Context, shortCode string) (string,
 		return m.resolveFunc(ctx, shortCode)
 	}
 	return "", nil
+}
+
+func (m *mockService) DeleteURL(ctx context.Context, shortCode string) error {
+	if m.deleteFunc != nil {
+		return m.deleteFunc(ctx, shortCode)
+	}
+	return nil
 }
 
 func TestHandler_Create(t *testing.T) {
