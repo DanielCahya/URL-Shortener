@@ -22,6 +22,9 @@ type Config struct {
 	LogLevel          string
 	JWTSecret         string
 	RedisAddr         string
+	RateLimitAnon     int
+	RateLimitAuth     int
+	RateLimitWindow   int
 }
 
 // Load reads configuration from environment variables, falling back to sensible defaults.
@@ -42,6 +45,9 @@ func Load() (*Config, error) {
 		LogLevel:          getEnv("LOG_LEVEL", "info"),
 		JWTSecret:         getEnv("JWT_SECRET", "supersecret-dev-key"),
 		RedisAddr:         getEnv("REDIS_ADDR", "localhost:6379"),
+		RateLimitAnon:     getEnvAsInt("RATE_LIMIT_ANONYMOUS", 10),
+		RateLimitAuth:     getEnvAsInt("RATE_LIMIT_AUTH", 100),
+		RateLimitWindow:   getEnvAsInt("RATE_LIMIT_WINDOW_SECONDS", 60),
 	}
 
 	if cfg.ServerPort == "" {

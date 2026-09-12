@@ -77,6 +77,11 @@ func UserIDFromContext(ctx context.Context) (uuid.UUID, bool) {
 	return userID, ok
 }
 
+// ContextWithUserID adds a user ID to the request context (used for testing).
+func ContextWithUserID(ctx context.Context, userID uuid.UUID) context.Context {
+	return context.WithValue(ctx, UserIDKey, userID)
+}
+
 // respondWithError handles middleware errors consistently (since we can't use AuthHandler methods directly).
 func respondWithError(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")

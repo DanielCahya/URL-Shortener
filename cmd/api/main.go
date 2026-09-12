@@ -94,17 +94,19 @@ func main() {
 	r.Use(middleware.Logger(log))
 	r.Use(chiMiddleware.Recoverer)
 
+	rateLimiter := middleware.RateLimiter(redisClient, cfg)
+
 	// Register Routes
 	r.Get("/health/live", healthHandler.Live)
 	r.Get("/health/ready", healthHandler.Ready)
-	r.With(auth.OptionalAuth(tokenService)).Post("/api/v1/urls", urlHandler.Create)
-	r.Post("/api/v1/auth/register", authHandler.RegisterUser)
-	r.Post("/api/v1/auth/login", authHandler.LoginUser)
-	r.Post("/api/v1/auth/refresh", authHandler.RefreshTokens)
-	r.Post("/api/v1/auth/logout", authHandler.LogoutUser)
-	r.With(auth.RequireAuth(tokenService)).Get("/api/v1/auth/me", authHandler.GetProfile)
-	r.With(auth.RequireAuth(tokenService)).Delete("/api/v1/urls/{short_code}", urlHandler.Delete)
-	r.Get("/{short_code}", urlHandler.Redirect)
+	r.With(auth.OptionalAuth(tokenService), rateLimiter).Post("/api/v1/urls", urlHandler.Create)
+	r.With(rateLimiter).Post("/api/v1/auth/register", authHandler.RegisterUser)
+	r.With(rateLimiter).Post("/api/v1/auth/login", authHandler.LoginUser)
+	r.With(rateLimiter).Post("/api/v1/auth/refresh", authHandler.RefreshTokens)
+	r.With(rateLimiter).Post("/api/v1/auth/logout", authHandler.LogoutUser)
+	r.With(auth.RequireAuth(tokenService), rateLimiter).Get("/api/v1/auth/me", authHandler.GetProfile)
+	r.With(auth.RequireAuth(tokenService), rateLimiter).Delete("/api/v1/urls/{short_code}", urlHandler.Delete)
+	r.With(rateLimiter).Get("/{short_code}", urlHandler.Redirect)
 
 	// 9. HTTP server startup
 	server := &http.Server{
