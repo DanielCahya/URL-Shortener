@@ -18,10 +18,10 @@ import (
 )
 
 type mockAuthService struct {
-	RegisterFunc func(ctx context.Context, req auth.RegisterRequest) (*auth.User, error)
-	LoginFunc    func(ctx context.Context, req auth.LoginRequest) (*auth.TokenResponse, error)
-	RefreshFunc  func(ctx context.Context, req auth.RefreshRequest) (*auth.TokenResponse, error)
-	LogoutFunc   func(ctx context.Context, req auth.LogoutRequest) error
+	RegisterFunc   func(ctx context.Context, req auth.RegisterRequest) (*auth.User, error)
+	LoginFunc      func(ctx context.Context, req auth.LoginRequest) (*auth.TokenResponse, error)
+	RefreshFunc    func(ctx context.Context, req auth.RefreshRequest) (*auth.TokenResponse, error)
+	LogoutFunc     func(ctx context.Context, req auth.LogoutRequest) error
 	GetProfileFunc func(ctx context.Context, userID uuid.UUID) (*auth.UserProfileResponse, error)
 }
 
@@ -62,7 +62,7 @@ func TestAuthHandler_RegisterUser(t *testing.T) {
 		handler.RegisterUser(rr, req)
 
 		assert.Equal(t, http.StatusCreated, rr.Code)
-		
+
 		var user auth.User
 		err := json.NewDecoder(rr.Body).Decode(&user)
 		require.NoError(t, err)
@@ -77,7 +77,7 @@ func TestAuthHandler_RegisterUser(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
 	})
-	
+
 	t.Run("Service Error - Invalid Email", func(t *testing.T) {
 		mockSvc.RegisterFunc = func(ctx context.Context, req auth.RegisterRequest) (*auth.User, error) {
 			return nil, auth.ErrInvalidEmail

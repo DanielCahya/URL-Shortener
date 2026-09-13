@@ -8,15 +8,15 @@ import (
 )
 
 var (
-	ErrNotFound             = errors.New("url not found")
-	ErrExpired              = errors.New("url has expired")
-	ErrAliasAlreadyExists   = errors.New("custom alias already exists")
-	ErrInvalidURL           = errors.New("invalid original url")
-	ErrInvalidAlias         = errors.New("invalid custom alias")
-	ErrReservedAlias        = errors.New("custom alias is a reserved system keyword")
-	ErrExpirationInPast     = errors.New("expiration date must be in the future")
-	ErrGenerationCollision  = errors.New("failed to generate unique short code after retries")
-	ErrCacheMiss            = errors.New("cache miss")
+	ErrNotFound            = errors.New("url not found")
+	ErrExpired             = errors.New("url has expired")
+	ErrAliasAlreadyExists  = errors.New("custom alias already exists")
+	ErrInvalidURL          = errors.New("invalid original url")
+	ErrInvalidAlias        = errors.New("invalid custom alias")
+	ErrReservedAlias       = errors.New("custom alias is a reserved system keyword")
+	ErrExpirationInPast    = errors.New("expiration date must be in the future")
+	ErrGenerationCollision = errors.New("failed to generate unique short code after retries")
+	ErrCacheMiss           = errors.New("cache miss")
 )
 
 // URL represents the core URL entity.

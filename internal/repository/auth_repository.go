@@ -7,7 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
-	
+
 	"github.com/DanielCahya/url-shortener/internal/auth"
 	"github.com/google/uuid"
 )
@@ -30,7 +30,7 @@ func (r *postgresAuthRepository) CreateUser(ctx context.Context, user *auth.User
 	`
 	err := r.pool.QueryRow(ctx, query, user.Email, user.PasswordHash).
 		Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
-		
+
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" { // unique_violation
@@ -50,7 +50,7 @@ func (r *postgresAuthRepository) GetUserByEmail(ctx context.Context, email strin
 	var user auth.User
 	err := r.pool.QueryRow(ctx, query, email).
 		Scan(&user.ID, &user.Email, &user.PasswordHash, &user.CreatedAt, &user.UpdatedAt)
-		
+
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, auth.ErrUserNotFound
@@ -100,7 +100,7 @@ func (r *postgresAuthRepository) GetRefreshTokenByHash(ctx context.Context, hash
 	var token auth.RefreshToken
 	err := r.pool.QueryRow(ctx, query, hash).
 		Scan(&token.ID, &token.UserID, &token.TokenHash, &token.ExpiresAt, &token.RevokedAt, &token.CreatedAt)
-		
+
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, auth.ErrTokenNotFound

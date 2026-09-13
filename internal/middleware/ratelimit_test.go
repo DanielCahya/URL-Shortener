@@ -117,8 +117,8 @@ func TestRateLimiter_Authenticated(t *testing.T) {
 func TestRateLimiter_FailOpen(t *testing.T) {
 	// Point to an invalid Redis port to simulate Redis being down
 	client := redis.NewClient(&redis.Options{
-		Addr: "localhost:9999",
-		MaxRetries: 0,
+		Addr:        "localhost:9999",
+		MaxRetries:  0,
 		DialTimeout: 10 * time.Millisecond,
 	})
 	defer client.Close()

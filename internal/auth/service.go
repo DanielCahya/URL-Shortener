@@ -160,7 +160,7 @@ func (s *authService) Logout(ctx context.Context, req LogoutRequest) error {
 	if err != nil && !errors.Is(err, ErrTokenNotFound) {
 		return err
 	}
-	
+
 	return nil
 }
 

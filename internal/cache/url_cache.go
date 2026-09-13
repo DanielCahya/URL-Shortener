@@ -29,7 +29,7 @@ func NewRedisURLCache(client *redis.Client) url.Cache {
 
 func (c *redisURLCache) GetOriginalURL(ctx context.Context, shortCode string) (string, error) {
 	key := urlPrefix + shortCode
-	
+
 	val, err := c.client.Get(ctx, key).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
@@ -43,7 +43,7 @@ func (c *redisURLCache) GetOriginalURL(ctx context.Context, shortCode string) (s
 
 func (c *redisURLCache) SetOriginalURL(ctx context.Context, shortCode, originalURL string) error {
 	key := urlPrefix + shortCode
-	
+
 	err := c.client.Set(ctx, key, originalURL, defaultTTL).Err()
 	if err != nil {
 		return fmt.Errorf("redis set error: %w", err)
@@ -54,7 +54,7 @@ func (c *redisURLCache) SetOriginalURL(ctx context.Context, shortCode, originalU
 
 func (c *redisURLCache) DeleteOriginalURL(ctx context.Context, shortCode string) error {
 	key := urlPrefix + shortCode
-	
+
 	err := c.client.Del(ctx, key).Err()
 	if err != nil {
 		return fmt.Errorf("redis del error: %w", err)

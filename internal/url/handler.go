@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/DanielCahya/url-shortener/internal/auth"
-	"github.com/DanielCahya/url-shortener/internal/middleware"
+	"github.com/DanielCahya/url-shortener/internal/logger"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -111,7 +111,7 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, status int,
 			Code:    code,
 			Message: message,
 		},
-		RequestID: middleware.GetRequestID(r.Context()),
+		RequestID: logger.GetRequestID(r.Context()),
 	}
 
 	_ = json.NewEncoder(w).Encode(resp)

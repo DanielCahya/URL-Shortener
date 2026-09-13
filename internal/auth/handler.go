@@ -33,7 +33,7 @@ func (h *AuthHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 			h.respondWithError(w, http.StatusConflict, err.Error())
 			return
 		}
-		
+
 		// Internal Error
 		h.respondWithError(w, http.StatusInternalServerError, "Internal server error")
 		return

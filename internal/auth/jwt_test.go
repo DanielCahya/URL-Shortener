@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/DanielCahya/url-shortener/internal/auth"
+	"github.com/google/uuid"
 )
 
 func TestTokenService(t *testing.T) {
@@ -49,7 +49,7 @@ func TestTokenService(t *testing.T) {
 		token := "my-opaque-token"
 		hash1 := auth.HashRefreshToken(token)
 		hash2 := auth.HashRefreshToken(token)
-		
+
 		if hash1 != hash2 {
 			t.Fatalf("expected deterministic hash, got %q and %q", hash1, hash2)
 		}

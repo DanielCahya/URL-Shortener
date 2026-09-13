@@ -70,6 +70,7 @@ func main() {
 	// 6. Repository construction
 	urlRepo := repository.NewPostgresURLRepository(dbPool)
 	authRepo := repository.NewPostgresAuthRepository(dbPool)
+	idempotencyRepo := repository.NewPostgresIdempotencyRepository(dbPool)
 
 	// 6. Service construction
 	tokenService := auth.NewTokenService(auth.JWTConfig{
@@ -78,7 +79,7 @@ func main() {
 		RefreshTTL: 7 * 24 * time.Hour,
 		Issuer:     "url-shortener",
 	})
-	
+
 	urlCache := cache.NewRedisURLCache(redisClient)
 	urlService := url.NewService(urlRepo, urlCache, cfg.BaseURL)
 	authService := auth.NewAuthService(authRepo, tokenService) // no tokenService needed for register
@@ -95,11 +96,12 @@ func main() {
 	r.Use(chiMiddleware.Recoverer)
 
 	rateLimiter := middleware.RateLimiter(redisClient, cfg)
+	idempotencyMiddleware := middleware.Idempotency(redisClient, idempotencyRepo)
 
 	// Register Routes
 	r.Get("/health/live", healthHandler.Live)
 	r.Get("/health/ready", healthHandler.Ready)
-	r.With(auth.OptionalAuth(tokenService), rateLimiter).Post("/api/v1/urls", urlHandler.Create)
+	r.With(auth.RequireAuth(tokenService), rateLimiter, idempotencyMiddleware).Post("/api/v1/urls", urlHandler.Create)
 	r.With(rateLimiter).Post("/api/v1/auth/register", authHandler.RegisterUser)
 	r.With(rateLimiter).Post("/api/v1/auth/login", authHandler.LoginUser)
 	r.With(rateLimiter).Post("/api/v1/auth/refresh", authHandler.RefreshTokens)

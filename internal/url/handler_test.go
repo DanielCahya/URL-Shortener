@@ -9,9 +9,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DanielCahya/url-shortener/internal/middleware"
 	"github.com/go-chi/chi/v5"
 )
+
+func mockRequestIDMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Request-ID", "test-request-id")
+		next.ServeHTTP(w, r)
+	})
+}
 
 type mockService struct {
 	createFunc  func(ctx context.Context, req CreateURLRequest) (*URLResponse, error)
@@ -56,7 +62,7 @@ func TestHandler_Create(t *testing.T) {
 
 		handler := NewHandler(mockSvc)
 		r := chi.NewRouter()
-		r.Use(middleware.RequestID)
+		r.Use(mockRequestIDMiddleware)
 		r.Post("/api/v1/urls", handler.Create)
 
 		payload := []byte(`{"original_url": "https://example.com/item/1"}`)
@@ -88,7 +94,7 @@ func TestHandler_Create(t *testing.T) {
 
 		handler := NewHandler(mockSvc)
 		r := chi.NewRouter()
-		r.Use(middleware.RequestID)
+		r.Use(mockRequestIDMiddleware)
 		r.Post("/api/v1/urls", handler.Create)
 
 		payload := []byte(`{"original_url": "https://example.com", "custom_alias": "taken"}`)
@@ -124,7 +130,7 @@ func TestHandler_Redirect(t *testing.T) {
 
 		handler := NewHandler(mockSvc)
 		r := chi.NewRouter()
-		r.Use(middleware.RequestID)
+		r.Use(mockRequestIDMiddleware)
 		r.Get("/{short_code}", handler.Redirect)
 
 		req := httptest.NewRequest(http.MethodGet, "/Ab3xYz", nil)
@@ -151,7 +157,7 @@ func TestHandler_Redirect(t *testing.T) {
 
 		handler := NewHandler(mockSvc)
 		r := chi.NewRouter()
-		r.Use(middleware.RequestID)
+		r.Use(mockRequestIDMiddleware)
 		r.Get("/{short_code}", handler.Redirect)
 
 		req := httptest.NewRequest(http.MethodGet, "/unknownCode", nil)
@@ -181,7 +187,7 @@ func TestHandler_Redirect(t *testing.T) {
 
 		handler := NewHandler(mockSvc)
 		r := chi.NewRouter()
-		r.Use(middleware.RequestID)
+		r.Use(mockRequestIDMiddleware)
 		r.Get("/{short_code}", handler.Redirect)
 
 		req := httptest.NewRequest(http.MethodGet, "/expiredCode", nil)

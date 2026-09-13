@@ -11,6 +11,17 @@ type contextKey string
 
 const RequestIDKey contextKey = "request_id"
 
+// GetRequestID extracts the request ID from context.
+func GetRequestID(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	if reqID, ok := ctx.Value(RequestIDKey).(string); ok {
+		return reqID
+	}
+	return ""
+}
+
 // New initializes and returns a structured JSON logger using log/slog.
 func New(serviceName string, levelStr string) *slog.Logger {
 	var level slog.Level

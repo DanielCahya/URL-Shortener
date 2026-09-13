@@ -19,10 +19,10 @@ var (
 
 // JWTConfig holds configuration for generating and validating tokens.
 type JWTConfig struct {
-	SecretKey       string
-	AccessTTL       time.Duration
-	RefreshTTL      time.Duration
-	Issuer          string
+	SecretKey  string
+	AccessTTL  time.Duration
+	RefreshTTL time.Duration
+	Issuer     string
 }
 
 // TokenPair contains the generated access and refresh tokens.
@@ -45,7 +45,7 @@ func NewTokenService(cfg JWTConfig) *TokenService {
 // GenerateTokenPair generates a new JWT access token and an opaque refresh token.
 func (s *TokenService) GenerateTokenPair(userID uuid.UUID) (TokenPair, error) {
 	now := time.Now()
-	
+
 	// 1. Generate Access Token (JWT)
 	claims := jwt.MapClaims{
 		"sub": userID.String(),
