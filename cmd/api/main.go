@@ -18,6 +18,7 @@ import (
 	"github.com/DanielCahya/url-shortener/internal/middleware"
 	"github.com/DanielCahya/url-shortener/internal/repository"
 	"github.com/DanielCahya/url-shortener/internal/url"
+	"github.com/DanielCahya/url-shortener/internal/worker"
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 )
@@ -89,7 +90,11 @@ func main() {
 	authHandler := auth.NewAuthHandler(authService)
 	healthHandler := handler.NewHealthHandler(dbPool)
 
-	// 8. Router and Middleware construction
+	// 8. Worker construction
+	cleanupWorker := worker.NewCleanupWorker(idempotencyRepo, 1*time.Hour, log)
+	go cleanupWorker.Start()
+
+	// 9. Router and Middleware construction
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger(log))
@@ -140,6 +145,8 @@ func main() {
 
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer shutdownCancel()
+
+		cleanupWorker.Stop()
 
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			log.Error("server forced to shutdown", slog.String("error", err.Error()))

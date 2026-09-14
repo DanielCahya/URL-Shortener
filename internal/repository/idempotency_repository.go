@@ -34,6 +34,7 @@ type IdempotencyRepository interface {
 	Create(ctx context.Context, userID uuid.UUID, key string, expiresAt time.Time) error
 	UpdateResponse(ctx context.Context, userID uuid.UUID, key string, status int, body []byte) error
 	MarkFailed(ctx context.Context, userID uuid.UUID, key string) error
+	DeleteExpired(ctx context.Context, now time.Time) (int64, error)
 }
 
 type postgresIdempotencyRepository struct {
@@ -91,4 +92,13 @@ func (r *postgresIdempotencyRepository) MarkFailed(ctx context.Context, userID u
 	`
 	_, err := r.pool.Exec(ctx, query, IdempotencyStateFailed, userID, key)
 	return err
+}
+
+func (r *postgresIdempotencyRepository) DeleteExpired(ctx context.Context, now time.Time) (int64, error) {
+	query := `DELETE FROM idempotency_keys WHERE expires_at < $1`
+	cmdTag, err := r.pool.Exec(ctx, query, now)
+	if err != nil {
+		return 0, err
+	}
+	return cmdTag.RowsAffected(), nil
 }

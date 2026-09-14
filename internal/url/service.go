@@ -157,7 +157,11 @@ func (s *service) ResolveURL(ctx context.Context, shortCode string) (string, err
 
 	// 4. Update cache asynchronously (or synchronously) to speed up future requests
 	if s.cache != nil {
-		_ = s.cache.SetOriginalURL(ctx, code, u.OriginalURL) // ignore error on set
+		var ttl time.Duration
+		if u.ExpiresAt != nil {
+			ttl = time.Until(*u.ExpiresAt)
+		}
+		_ = s.cache.SetOriginalURL(ctx, code, u.OriginalURL, ttl) // ignore error on set
 	}
 
 	return u.OriginalURL, nil

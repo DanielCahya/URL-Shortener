@@ -41,10 +41,14 @@ func (c *redisURLCache) GetOriginalURL(ctx context.Context, shortCode string) (s
 	return val, nil
 }
 
-func (c *redisURLCache) SetOriginalURL(ctx context.Context, shortCode, originalURL string) error {
+func (c *redisURLCache) SetOriginalURL(ctx context.Context, shortCode, originalURL string, ttl time.Duration) error {
 	key := urlPrefix + shortCode
 
-	err := c.client.Set(ctx, key, originalURL, defaultTTL).Err()
+	if ttl == 0 {
+		ttl = defaultTTL
+	}
+
+	err := c.client.Set(ctx, key, originalURL, ttl).Err()
 	if err != nil {
 		return fmt.Errorf("redis set error: %w", err)
 	}
