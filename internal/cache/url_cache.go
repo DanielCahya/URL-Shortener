@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -27,28 +28,38 @@ func NewRedisURLCache(client *redis.Client) url.Cache {
 	}
 }
 
-func (c *redisURLCache) GetOriginalURL(ctx context.Context, shortCode string) (string, error) {
+func (c *redisURLCache) GetURL(ctx context.Context, shortCode string) (*url.CachedURL, error) {
 	key := urlPrefix + shortCode
 
 	val, err := c.client.Get(ctx, key).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
-			return "", url.ErrCacheMiss
+			return nil, url.ErrCacheMiss
 		}
-		return "", fmt.Errorf("redis get error: %w", err)
+		return nil, fmt.Errorf("redis get error: %w", err)
 	}
 
-	return val, nil
+	var cachedURL url.CachedURL
+	if err := json.Unmarshal([]byte(val), &cachedURL); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal cached url: %w", err)
+	}
+
+	return &cachedURL, nil
 }
 
-func (c *redisURLCache) SetOriginalURL(ctx context.Context, shortCode, originalURL string, ttl time.Duration) error {
+func (c *redisURLCache) SetURL(ctx context.Context, shortCode string, u *url.CachedURL, ttl time.Duration) error {
 	key := urlPrefix + shortCode
 
 	if ttl == 0 {
 		ttl = defaultTTL
 	}
 
-	err := c.client.Set(ctx, key, originalURL, ttl).Err()
+	data, err := json.Marshal(u)
+	if err != nil {
+		return fmt.Errorf("failed to marshal cached url: %w", err)
+	}
+
+	err = c.client.Set(ctx, key, data, ttl).Err()
 	if err != nil {
 		return fmt.Errorf("redis set error: %w", err)
 	}
@@ -56,7 +67,7 @@ func (c *redisURLCache) SetOriginalURL(ctx context.Context, shortCode, originalU
 	return nil
 }
 
-func (c *redisURLCache) DeleteOriginalURL(ctx context.Context, shortCode string) error {
+func (c *redisURLCache) DeleteURL(ctx context.Context, shortCode string) error {
 	key := urlPrefix + shortCode
 
 	err := c.client.Del(ctx, key).Err()

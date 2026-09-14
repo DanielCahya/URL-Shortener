@@ -61,7 +61,14 @@ func (h *Handler) Redirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	targetURL, err := h.service.ResolveURL(r.Context(), shortCode)
+	req := ResolveRequest{
+		ShortCode: shortCode,
+		UserAgent: r.UserAgent(),
+		IPCountry: r.Header.Get("CF-IPCountry"),
+		Referer:   r.Referer(),
+	}
+
+	targetURL, err := h.service.ResolveURL(r.Context(), req)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrNotFound):

@@ -72,6 +72,7 @@ func main() {
 	urlRepo := repository.NewPostgresURLRepository(dbPool)
 	authRepo := repository.NewPostgresAuthRepository(dbPool)
 	idempotencyRepo := repository.NewPostgresIdempotencyRepository(dbPool)
+	outboxRepo := repository.NewPostgresOutboxRepository(dbPool)
 
 	// 6. Service construction
 	tokenService := auth.NewTokenService(auth.JWTConfig{
@@ -82,7 +83,8 @@ func main() {
 	})
 
 	urlCache := cache.NewRedisURLCache(redisClient)
-	urlService := url.NewService(urlRepo, urlCache, cfg.BaseURL)
+	analyticsRepo := repository.NewPostgresAnalyticsRepository(outboxRepo)
+	urlService := url.NewService(urlRepo, urlCache, analyticsRepo, cfg.BaseURL)
 	authService := auth.NewAuthService(authRepo, tokenService) // no tokenService needed for register
 
 	// 7. Handler construction

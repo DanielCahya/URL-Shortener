@@ -10,6 +10,7 @@ import (
 
 	"github.com/DanielCahya/url-shortener/internal/auth"
 	"github.com/google/uuid"
+	"github.com/mssola/user_agent"
 )
 
 const (
@@ -23,25 +24,34 @@ type Repository interface {
 	Delete(ctx context.Context, shortCode string, userID uuid.UUID) error
 }
 
+type ResolveRequest struct {
+	ShortCode string
+	UserAgent string
+	IPCountry string
+	Referer   string
+}
+
 // Service defines the business logic for URL operations.
 type Service interface {
 	CreateURL(ctx context.Context, req CreateURLRequest) (*URLResponse, error)
-	ResolveURL(ctx context.Context, shortCode string) (string, error)
+	ResolveURL(ctx context.Context, req ResolveRequest) (string, error)
 	DeleteURL(ctx context.Context, shortCode string) error
 }
 
 type service struct {
-	repo    Repository
-	cache   Cache
-	baseURL string
+	repo          Repository
+	cache         Cache
+	analyticsRepo AnalyticsRepository
+	baseURL       string
 }
 
 // NewService creates a new URL service.
-func NewService(repo Repository, cache Cache, baseURL string) Service {
+func NewService(repo Repository, cache Cache, analyticsRepo AnalyticsRepository, baseURL string) Service {
 	return &service{
-		repo:    repo,
-		cache:   cache,
-		baseURL: strings.TrimRight(baseURL, "/"),
+		repo:          repo,
+		cache:         cache,
+		analyticsRepo: analyticsRepo,
+		baseURL:       strings.TrimRight(baseURL, "/"),
 	}
 }
 
@@ -129,42 +139,113 @@ func (s *service) CreateURL(ctx context.Context, req CreateURLRequest) (*URLResp
 	return nil, ErrGenerationCollision
 }
 
-func (s *service) ResolveURL(ctx context.Context, shortCode string) (string, error) {
-	code := strings.TrimSpace(shortCode)
+func (s *service) ResolveURL(ctx context.Context, req ResolveRequest) (string, error) {
+	code := strings.TrimSpace(req.ShortCode)
 	if code == "" {
 		return "", ErrNotFound
 	}
 
+	var urlID string
+	var originalURL string
+	var expiresAt *time.Time
+
 	// 1. Try to fetch from cache first
 	if s.cache != nil {
-		cachedURL, err := s.cache.GetOriginalURL(ctx, code)
-		if err == nil {
-			return cachedURL, nil
+		cachedURL, err := s.cache.GetURL(ctx, code)
+		if err == nil && cachedURL != nil {
+			urlID = cachedURL.ID
+			originalURL = cachedURL.OriginalURL
 		}
-		// On cache miss, we proceed to DB
 	}
 
 	// 2. Cache miss, fetch from database
-	u, err := s.repo.GetByShortCode(ctx, code)
-	if err != nil {
-		return "", err
-	}
-
-	// 3. Check expiration
-	if u.ExpiresAt != nil && time.Now().UTC().After(*u.ExpiresAt) {
-		return "", ErrExpired
-	}
-
-	// 4. Update cache asynchronously (or synchronously) to speed up future requests
-	if s.cache != nil {
-		var ttl time.Duration
-		if u.ExpiresAt != nil {
-			ttl = time.Until(*u.ExpiresAt)
+	if originalURL == "" {
+		u, err := s.repo.GetByShortCode(ctx, code)
+		if err != nil {
+			return "", err
 		}
-		_ = s.cache.SetOriginalURL(ctx, code, u.OriginalURL, ttl) // ignore error on set
+
+		// 3. Check expiration
+		if u.ExpiresAt != nil && time.Now().UTC().After(*u.ExpiresAt) {
+			return "", ErrExpired
+		}
+
+		urlID = u.ID
+		originalURL = u.OriginalURL
+		expiresAt = u.ExpiresAt
+
+		// 4. Update cache asynchronously (or synchronously)
+		if s.cache != nil {
+			var ttl time.Duration
+			if expiresAt != nil {
+				ttl = time.Until(*expiresAt)
+			}
+			_ = s.cache.SetURL(ctx, code, &CachedURL{
+				ID:          urlID,
+				OriginalURL: originalURL,
+			}, ttl) // ignore error on set
+		}
 	}
 
-	return u.OriginalURL, nil
+	// 5. Asynchronously record the click event in the outbox
+	// Even though it is recorded "asynchronously" relative to the redirect from the user's perspective (fire and forget),
+	// we do it in a non-blocking goroutine or synchronously. 
+	// Wait, the PDF says: "The redirect request must not synchronously perform analytics database operations."
+	// However, if we do it in a goroutine, what if the goroutine crashes before `outbox_events` is written?
+	// The outbox pattern usually means writing the outbox event in the same ACID transaction as the business entity. 
+	// But since this is a read (ResolveURL), there is no business entity transaction!
+	// Writing to outbox_events synchronously takes <2ms, but doing it in a goroutine takes 0ms for the redirect.
+	// We'll write to outbox_events synchronously but without blocking the HTTP response, OR just synchronously to ensure guaranteed delivery. 
+	// The PDF: "The redirect request must not synchronously perform analytics database operations... Return 307. The event is processed asynchronously."
+	// To strictly follow "must not synchronously perform analytics database operations", we could launch a goroutine to write to the outbox.
+	// But the outbox *is* the database operation. If we don't write it synchronously, we risk losing it on process crash.
+	// Actually, the typical outbox pattern means writing to the outbox IS the synchronous database operation, and publishing to RabbitMQ is asynchronous.
+	// Wait, the PDF says "Application -> BEGIN TRANSACTION -> Business Data -> Outbox Event -> COMMIT." -> "Do not directly depend on successful RabbitMQ publishing".
+	// "The business database state and the outbox event must be committed atomically."
+	// Since there is no "business state" mutation during a redirect, we just insert the outbox event.
+	// If we must not do it synchronously, then what's the point of the outbox? We could just publish to RabbitMQ asynchronously.
+	// The intent is likely "Do not synchronously publish to RabbitMQ or update the heavy click_events tables." Writing to the append-only outbox table IS the fast synchronous part.
+	
+	// Let's parse user agent
+	ua := user_agent.New(req.UserAgent)
+	browser, _ := ua.Browser()
+	os := ua.OS()
+	device := "desktop"
+	if ua.Mobile() {
+		device = "mobile"
+	}
+	if ua.Bot() {
+		device = "bot"
+	}
+
+	clickEvent := ClickEvent{
+		URLID:           urlID,
+		Timestamp:       time.Now().UTC(),
+	}
+
+	if req.IPCountry != "" {
+		clickEvent.Country = &req.IPCountry
+	}
+	if req.UserAgent != "" {
+		clickEvent.Device = &device
+		clickEvent.Browser = &browser
+		clickEvent.OperatingSystem = &os
+	}
+	if req.Referer != "" {
+		clickEvent.Referrer = &req.Referer
+	}
+
+	if s.analyticsRepo != nil {
+		// Execute in background to ensure redirect isn't blocked by PostgreSQL latency
+		go func() {
+			// use a new background context with a timeout so it isn't cancelled if the HTTP request closes
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			_ = s.analyticsRepo.RecordClick(ctx, clickEvent)
+		}()
+	}
+
+	return originalURL, nil
 }
 
 func (s *service) DeleteURL(ctx context.Context, shortCode string) error {
@@ -187,7 +268,7 @@ func (s *service) DeleteURL(ctx context.Context, shortCode string) error {
 
 	// 3. Invalidate Cache
 	if s.cache != nil {
-		_ = s.cache.DeleteOriginalURL(ctx, code) // best effort
+		_ = s.cache.DeleteURL(ctx, code) // best effort
 	}
 
 	return nil

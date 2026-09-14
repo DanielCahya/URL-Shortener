@@ -21,7 +21,7 @@ func mockRequestIDMiddleware(next http.Handler) http.Handler {
 
 type mockService struct {
 	createFunc  func(ctx context.Context, req CreateURLRequest) (*URLResponse, error)
-	resolveFunc func(ctx context.Context, shortCode string) (string, error)
+	resolveFunc func(ctx context.Context, req ResolveRequest) (string, error)
 	deleteFunc  func(ctx context.Context, shortCode string) error
 }
 
@@ -32,9 +32,9 @@ func (m *mockService) CreateURL(ctx context.Context, req CreateURLRequest) (*URL
 	return nil, nil
 }
 
-func (m *mockService) ResolveURL(ctx context.Context, shortCode string) (string, error) {
+func (m *mockService) ResolveURL(ctx context.Context, req ResolveRequest) (string, error) {
 	if m.resolveFunc != nil {
-		return m.resolveFunc(ctx, shortCode)
+		return m.resolveFunc(ctx, req)
 	}
 	return "", nil
 }
@@ -120,8 +120,8 @@ func TestHandler_Create(t *testing.T) {
 func TestHandler_Redirect(t *testing.T) {
 	t.Run("successful resolution returns 307 with Location header", func(t *testing.T) {
 		mockSvc := &mockService{
-			resolveFunc: func(ctx context.Context, shortCode string) (string, error) {
-				if shortCode == "Ab3xYz" {
+			resolveFunc: func(ctx context.Context, req ResolveRequest) (string, error) {
+				if req.ShortCode == "Ab3xYz" {
 					return "https://example.com/target", nil
 				}
 				return "", ErrNotFound
@@ -150,7 +150,7 @@ func TestHandler_Redirect(t *testing.T) {
 
 	t.Run("not found returns 404 with structured error", func(t *testing.T) {
 		mockSvc := &mockService{
-			resolveFunc: func(ctx context.Context, shortCode string) (string, error) {
+			resolveFunc: func(ctx context.Context, req ResolveRequest) (string, error) {
 				return "", ErrNotFound
 			},
 		}
@@ -180,7 +180,7 @@ func TestHandler_Redirect(t *testing.T) {
 
 	t.Run("expired url returns 410 Gone", func(t *testing.T) {
 		mockSvc := &mockService{
-			resolveFunc: func(ctx context.Context, shortCode string) (string, error) {
+			resolveFunc: func(ctx context.Context, req ResolveRequest) (string, error) {
 				return "", ErrExpired
 			},
 		}
