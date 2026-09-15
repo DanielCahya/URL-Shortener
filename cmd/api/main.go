@@ -16,6 +16,7 @@ import (
 	"github.com/DanielCahya/url-shortener/internal/handler"
 	"github.com/DanielCahya/url-shortener/internal/logger"
 	"github.com/DanielCahya/url-shortener/internal/middleware"
+	"github.com/DanielCahya/url-shortener/internal/queue"
 	"github.com/DanielCahya/url-shortener/internal/repository"
 	"github.com/DanielCahya/url-shortener/internal/url"
 	"github.com/DanielCahya/url-shortener/internal/worker"
@@ -68,6 +69,15 @@ func main() {
 	defer redisClient.Close()
 	log.Info("connected to Redis successfully")
 
+	// 5.5 Initialize RabbitMQ Client
+	rabbitMQClient, err := queue.NewRabbitMQClient(cfg.RabbitMQURL)
+	if err != nil {
+		log.Error("failed to connect to rabbitmq", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	defer rabbitMQClient.Close()
+	log.Info("connected to RabbitMQ successfully")
+
 	// 6. Repository construction
 	urlRepo := repository.NewPostgresURLRepository(dbPool)
 	authRepo := repository.NewPostgresAuthRepository(dbPool)
@@ -95,6 +105,10 @@ func main() {
 	// 8. Worker construction
 	cleanupWorker := worker.NewCleanupWorker(idempotencyRepo, 1*time.Hour, log)
 	go cleanupWorker.Start()
+
+	outboxPublisher := worker.NewOutboxPublisher(outboxRepo, rabbitMQClient)
+	publisherCtx, publisherCancel := context.WithCancel(context.Background())
+	go outboxPublisher.Start(publisherCtx)
 
 	// 9. Router and Middleware construction
 	r := chi.NewRouter()
@@ -149,6 +163,7 @@ func main() {
 		defer shutdownCancel()
 
 		cleanupWorker.Stop()
+		publisherCancel()
 
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			log.Error("server forced to shutdown", slog.String("error", err.Error()))
