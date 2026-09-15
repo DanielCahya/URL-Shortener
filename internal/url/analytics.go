@@ -6,6 +6,7 @@ import (
 )
 
 type ClickEvent struct {
+	EventID         string    `json:"event_id"`
 	URLID           string    `json:"url_id"`
 	Country         *string   `json:"country,omitempty"`
 	Device          *string   `json:"device,omitempty"`

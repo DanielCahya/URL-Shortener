@@ -19,6 +19,7 @@ import (
 	"github.com/DanielCahya/url-shortener/internal/queue"
 	"github.com/DanielCahya/url-shortener/internal/repository"
 	"github.com/DanielCahya/url-shortener/internal/url"
+	"github.com/DanielCahya/url-shortener/internal/consumer"
 	"github.com/DanielCahya/url-shortener/internal/worker"
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
@@ -83,6 +84,7 @@ func main() {
 	authRepo := repository.NewPostgresAuthRepository(dbPool)
 	idempotencyRepo := repository.NewPostgresIdempotencyRepository(dbPool)
 	outboxRepo := repository.NewPostgresOutboxRepository(dbPool)
+	clickEventRepo := repository.NewPostgresClickEventRepository(dbPool)
 
 	// 6. Service construction
 	tokenService := auth.NewTokenService(auth.JWTConfig{
@@ -109,6 +111,10 @@ func main() {
 	outboxPublisher := worker.NewOutboxPublisher(outboxRepo, rabbitMQClient)
 	publisherCtx, publisherCancel := context.WithCancel(context.Background())
 	go outboxPublisher.Start(publisherCtx)
+
+	analyticsConsumer := consumer.NewAnalyticsConsumer(rabbitMQClient, clickEventRepo)
+	consumerCtx, consumerCancel := context.WithCancel(context.Background())
+	go analyticsConsumer.Start(consumerCtx)
 
 	// 9. Router and Middleware construction
 	r := chi.NewRouter()
@@ -164,6 +170,7 @@ func main() {
 
 		cleanupWorker.Stop()
 		publisherCancel()
+		consumerCancel()
 
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			log.Error("server forced to shutdown", slog.String("error", err.Error()))

@@ -219,6 +219,7 @@ func (s *service) ResolveURL(ctx context.Context, req ResolveRequest) (string, e
 	}
 
 	clickEvent := ClickEvent{
+		EventID:         uuid.NewString(),
 		URLID:           urlID,
 		Timestamp:       time.Now().UTC(),
 	}

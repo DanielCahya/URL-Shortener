@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/DanielCahya/url-shortener/internal/url"
-	"github.com/google/uuid"
 )
 
 type postgresAnalyticsRepository struct {
@@ -26,7 +25,7 @@ func (r *postgresAnalyticsRepository) RecordClick(ctx context.Context, event url
 	}
 
 	outboxEvent := &OutboxEvent{
-		ID:            uuid.NewString(),
+		ID:            event.EventID,
 		EventType:     "url.clicked",
 		AggregateType: "url",
 		AggregateID:   event.URLID,
