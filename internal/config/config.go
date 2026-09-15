@@ -25,6 +25,7 @@ type Config struct {
 	RateLimitAnon     int
 	RateLimitAuth     int
 	RateLimitWindow   int
+	RabbitMQURL       string
 }
 
 // Load reads configuration from environment variables, falling back to sensible defaults.
@@ -48,6 +49,7 @@ func Load() (*Config, error) {
 		RateLimitAnon:     getEnvAsInt("RATE_LIMIT_ANONYMOUS", 10),
 		RateLimitAuth:     getEnvAsInt("RATE_LIMIT_AUTH", 100),
 		RateLimitWindow:   getEnvAsInt("RATE_LIMIT_WINDOW_SECONDS", 60),
+		RabbitMQURL:       getEnv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
 	}
 
 	if cfg.ServerPort == "" {
