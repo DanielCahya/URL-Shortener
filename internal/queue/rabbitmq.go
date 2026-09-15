@@ -19,26 +19,35 @@ const (
 )
 
 type RabbitMQClient struct {
-	conn    *amqp.Connection
-	channel *amqp.Channel
+	conn      *amqp.Connection
+	publishCh *amqp.Channel
+	consumeCh *amqp.Channel
 }
 
-// NewRabbitMQClient connects to RabbitMQ, opens a channel, and sets up the topology.
+// NewRabbitMQClient connects to RabbitMQ, opens channels, and sets up the topology.
 func NewRabbitMQClient(url string) (*RabbitMQClient, error) {
 	conn, err := amqp.Dial(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to RabbitMQ: %w", err)
 	}
 
-	ch, err := conn.Channel()
+	pubCh, err := conn.Channel()
 	if err != nil {
 		_ = conn.Close()
-		return nil, fmt.Errorf("failed to open a channel: %w", err)
+		return nil, fmt.Errorf("failed to open publish channel: %w", err)
+	}
+
+	subCh, err := conn.Channel()
+	if err != nil {
+		_ = pubCh.Close()
+		_ = conn.Close()
+		return nil, fmt.Errorf("failed to open consume channel: %w", err)
 	}
 
 	client := &RabbitMQClient{
-		conn:    conn,
-		channel: ch,
+		conn:      conn,
+		publishCh: pubCh,
+		consumeCh: subCh,
 	}
 
 	if err := client.setupTopology(); err != nil {
@@ -51,7 +60,7 @@ func NewRabbitMQClient(url string) (*RabbitMQClient, error) {
 
 func (c *RabbitMQClient) setupTopology() error {
 	// 1. Setup Dead Letter Exchange & Queue
-	err := c.channel.ExchangeDeclare(
+	err := c.publishCh.ExchangeDeclare(
 		ExchangeAnalyticsDLX,
 		"direct",
 		true,  // durable
@@ -64,7 +73,7 @@ func (c *RabbitMQClient) setupTopology() error {
 		return err
 	}
 
-	_, err = c.channel.QueueDeclare(
+	_, err = c.publishCh.QueueDeclare(
 		QueueAnalyticsDLQ,
 		true,  // durable
 		false, // delete when unused
@@ -76,7 +85,7 @@ func (c *RabbitMQClient) setupTopology() error {
 		return err
 	}
 
-	err = c.channel.QueueBind(
+	err = c.publishCh.QueueBind(
 		QueueAnalyticsDLQ,
 		RoutingKeyURLClicked,
 		ExchangeAnalyticsDLX,
@@ -88,7 +97,7 @@ func (c *RabbitMQClient) setupTopology() error {
 	}
 
 	// 2. Setup Main Exchange & Queue with DLX args
-	err = c.channel.ExchangeDeclare(
+	err = c.publishCh.ExchangeDeclare(
 		ExchangeAnalyticsEvents,
 		"topic",
 		true,
@@ -106,7 +115,7 @@ func (c *RabbitMQClient) setupTopology() error {
 		"x-dead-letter-routing-key": RoutingKeyURLClicked,
 	}
 
-	_, err = c.channel.QueueDeclare(
+	_, err = c.publishCh.QueueDeclare(
 		QueueAnalyticsClicks,
 		true,
 		false,
@@ -118,7 +127,7 @@ func (c *RabbitMQClient) setupTopology() error {
 		return err
 	}
 
-	err = c.channel.QueueBind(
+	err = c.publishCh.QueueBind(
 		QueueAnalyticsClicks,
 		RoutingKeyURLClicked,
 		ExchangeAnalyticsEvents,
@@ -137,7 +146,7 @@ func (c *RabbitMQClient) Publish(ctx context.Context, payload []byte) error {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	err := c.channel.PublishWithContext(ctx,
+	err := c.publishCh.PublishWithContext(ctx,
 		ExchangeAnalyticsEvents,
 		RoutingKeyURLClicked,
 		false, // mandatory
@@ -157,7 +166,7 @@ func (c *RabbitMQClient) Publish(ctx context.Context, payload []byte) error {
 
 // Consume registers a consumer and returns a Go channel of deliveries.
 func (c *RabbitMQClient) Consume(consumerName string) (<-chan amqp.Delivery, error) {
-	return c.channel.Consume(
+	return c.consumeCh.Consume(
 		QueueAnalyticsClicks,
 		consumerName,
 		false, // auto-ack (we want manual ack)
@@ -169,8 +178,11 @@ func (c *RabbitMQClient) Consume(consumerName string) (<-chan amqp.Delivery, err
 }
 
 func (c *RabbitMQClient) Close() {
-	if c.channel != nil {
-		_ = c.channel.Close()
+	if c.publishCh != nil {
+		_ = c.publishCh.Close()
+	}
+	if c.consumeCh != nil {
+		_ = c.consumeCh.Close()
 	}
 	if c.conn != nil {
 		_ = c.conn.Close()
