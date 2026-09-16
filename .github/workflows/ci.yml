@@ -74,6 +74,11 @@ jobs:
           install-mode: goinstall
           args: --timeout=5m ./...
 
+      - name: Run Database Migrations
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/urlshortener?sslmode=disable
+        run: go run ./cmd/migrate
+
       - name: Run Tests with Race Detector
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/urlshortener?sslmode=disable
