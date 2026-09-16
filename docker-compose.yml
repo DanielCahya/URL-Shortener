@@ -13,9 +13,10 @@ services:
       - urlshortener_pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d urlshortener"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 15
+      start_period: 30s
 
   redis:
     image: redis:7-alpine
@@ -25,9 +26,10 @@ services:
       - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 15
+      start_period: 30s
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
@@ -41,9 +43,10 @@ services:
       RABBITMQ_DEFAULT_PASS: guest
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 30s
+      timeout: 15s
+      retries: 40
+      start_period: 300s
 
   prometheus:
     image: prom/prometheus:latest
@@ -68,6 +71,29 @@ services:
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: urlshortener-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - APP_ENV=production
+      - SERVER_PORT=8080
+      - BASE_URL=http://localhost:8080
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/urlshortener?sslmode=disable
+      - REDIS_ADDR=redis:6379
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
 volumes:
   urlshortener_pgdata:
