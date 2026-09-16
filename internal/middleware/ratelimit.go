@@ -7,6 +7,7 @@ import (
 
 	"github.com/DanielCahya/url-shortener/internal/auth"
 	"github.com/DanielCahya/url-shortener/internal/config"
+	"github.com/DanielCahya/url-shortener/internal/metrics"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -47,6 +48,7 @@ func RateLimiter(redisClient *redis.Client, cfg *config.Config) func(next http.H
 			}
 
 			if count > int64(limit) {
+				metrics.RateLimitExceededTotal.WithLabelValues(r.URL.Path).Inc()
 				w.Header().Set("Content-Type", "application/json")
 				w.Header().Set("Retry-After", fmt.Sprintf("%d", cfg.RateLimitWindow))
 				w.WriteHeader(http.StatusTooManyRequests)

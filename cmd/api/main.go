@@ -23,6 +23,7 @@ import (
 	"github.com/DanielCahya/url-shortener/internal/worker"
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -102,7 +103,7 @@ func main() {
 	// 7. Handler construction
 	urlHandler := url.NewHandler(urlService)
 	authHandler := auth.NewAuthHandler(authService)
-	healthHandler := handler.NewHealthHandler(dbPool)
+	healthHandler := handler.NewHealthHandler(dbPool, redisClient)
 
 	// 8. Worker construction
 	cleanupWorker := worker.NewCleanupWorker(idempotencyRepo, 1*time.Hour, log)
@@ -120,12 +121,14 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger(log))
+	r.Use(middleware.Metrics)
 	r.Use(chiMiddleware.Recoverer)
 
 	rateLimiter := middleware.RateLimiter(redisClient, cfg)
 	idempotencyMiddleware := middleware.Idempotency(redisClient, idempotencyRepo)
 
 	// Register Routes
+	r.Get("/metrics", promhttp.Handler().ServeHTTP)
 	r.Get("/health/live", healthHandler.Live)
 	r.Get("/health/ready", healthHandler.Ready)
 	r.With(auth.RequireAuth(tokenService), rateLimiter, idempotencyMiddleware).Post("/api/v1/urls", urlHandler.Create)

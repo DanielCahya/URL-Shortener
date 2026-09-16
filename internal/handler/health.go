@@ -7,14 +7,19 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 )
 
 type HealthHandler struct {
-	pool *pgxpool.Pool
+	pool  *pgxpool.Pool
+	redis *redis.Client
 }
 
-func NewHealthHandler(pool *pgxpool.Pool) *HealthHandler {
-	return &HealthHandler{pool: pool}
+func NewHealthHandler(pool *pgxpool.Pool, redisClient *redis.Client) *HealthHandler {
+	return &HealthHandler{
+		pool:  pool,
+		redis: redisClient,
+	}
 }
 
 type HealthResponse struct {
@@ -33,7 +38,7 @@ func (h *HealthHandler) Live(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Ready verifies dependencies (PostgreSQL) before accepting traffic.
+// Ready verifies dependencies before accepting traffic.
 func (h *HealthHandler) Ready(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
@@ -46,6 +51,13 @@ func (h *HealthHandler) Ready(w http.ResponseWriter, r *http.Request) {
 		details["postgres"] = "unreachable: " + err.Error()
 	} else {
 		details["postgres"] = "ok"
+	}
+
+	if err := h.redis.Ping(ctx).Err(); err != nil {
+		isReady = false
+		details["redis"] = "unreachable: " + err.Error()
+	} else {
+		details["redis"] = "ok"
 	}
 
 	w.Header().Set("Content-Type", "application/json")

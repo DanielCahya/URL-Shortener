@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/DanielCahya/url-shortener/internal/auth"
+	"github.com/DanielCahya/url-shortener/internal/metrics"
 	"github.com/google/uuid"
 	"github.com/mssola/user_agent"
 )
@@ -100,6 +101,7 @@ func (s *service) CreateURL(ctx context.Context, req CreateURLRequest) (*URLResp
 			return nil, fmt.Errorf("failed to save custom url: %w", err)
 		}
 
+		metrics.URLCreationTotal.Inc()
 		return s.toResponse(u), nil
 	}
 
@@ -125,6 +127,7 @@ func (s *service) CreateURL(ctx context.Context, req CreateURLRequest) (*URLResp
 
 		err = s.repo.Create(ctx, u)
 		if err == nil {
+			metrics.URLCreationTotal.Inc()
 			return s.toResponse(u), nil
 		}
 
@@ -155,6 +158,9 @@ func (s *service) ResolveURL(ctx context.Context, req ResolveRequest) (string, e
 		if err == nil && cachedURL != nil {
 			urlID = cachedURL.ID
 			originalURL = cachedURL.OriginalURL
+			metrics.RedisCacheHitTotal.Inc()
+		} else {
+			metrics.RedisCacheMissTotal.Inc()
 		}
 	}
 
@@ -246,6 +252,7 @@ func (s *service) ResolveURL(ctx context.Context, req ResolveRequest) (string, e
 		}()
 	}
 
+	metrics.RedirectTotal.Inc()
 	return originalURL, nil
 }
 

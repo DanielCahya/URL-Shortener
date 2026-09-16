@@ -46,6 +46,9 @@ func TestMigrations_AnalyticsTablesExist(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, constraintExists, "uq_click_events_event_id constraint should exist")
 
+	// Clean up before test to ensure idempotency
+	_, _ = pool.Exec(ctx, "DELETE FROM click_events WHERE id = 'test-click-id'")
+
 	// 5. Test nullable fields work correctly by inserting a row with NULLs
 	_, err = pool.Exec(ctx, "INSERT INTO urls (id, short_code, original_url) VALUES ('test-url-id', 'test', 'http://test.com') ON CONFLICT DO NOTHING")
 	require.NoError(t, err)
@@ -53,6 +56,7 @@ func TestMigrations_AnalyticsTablesExist(t *testing.T) {
 	_, err = pool.Exec(ctx, `
 		INSERT INTO click_events (id, event_id, url_id, country, device, browser, operating_system, referrer) 
 		VALUES ('test-click-id', 'test-event-id', 'test-url-id', NULL, NULL, NULL, NULL, NULL)
+		ON CONFLICT (event_id) DO NOTHING
 	`)
 	require.NoError(t, err, "Should be able to insert click_event with NULL analytics fields")
 

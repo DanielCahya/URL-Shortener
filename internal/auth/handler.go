@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+
+	"github.com/DanielCahya/url-shortener/internal/metrics"
 )
 
 type AuthHandler struct {
@@ -54,6 +56,7 @@ func (h *AuthHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	tokenResponse, err := h.service.Login(r.Context(), req)
 	if err != nil {
 		if err.Error() == "invalid email or password" {
+			metrics.AuthenticationFailureTotal.WithLabelValues("invalid_credentials").Inc()
 			h.respondWithError(w, http.StatusUnauthorized, err.Error())
 			return
 		}
@@ -77,6 +80,7 @@ func (h *AuthHandler) RefreshTokens(w http.ResponseWriter, r *http.Request) {
 	tokenResponse, err := h.service.RefreshToken(r.Context(), req)
 	if err != nil {
 		if err.Error() == "invalid refresh token" || err.Error() == "missing refresh token" {
+			metrics.AuthenticationFailureTotal.WithLabelValues("invalid_refresh_token").Inc()
 			h.respondWithError(w, http.StatusUnauthorized, err.Error())
 			return
 		}

@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/DanielCahya/url-shortener/internal/metrics"
 	"github.com/DanielCahya/url-shortener/internal/queue"
 	"github.com/DanielCahya/url-shortener/internal/repository"
 	"github.com/jackc/pgx/v5"
@@ -64,8 +65,10 @@ func (p *OutboxPublisher) processBatch(ctx context.Context) {
 			err := p.rabbitMQ.Publish(ctx, event.Payload)
 			if err != nil {
 				log.Printf("Failed to publish event %s: %v", event.ID, err)
+				metrics.OutboxPublishFailureTotal.Inc()
 				failedIDs = append(failedIDs, event.ID)
 			} else {
+				metrics.OutboxPublishTotal.Inc()
 				publishedIDs = append(publishedIDs, event.ID)
 			}
 		}

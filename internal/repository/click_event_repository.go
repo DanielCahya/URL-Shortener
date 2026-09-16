@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 
+	"github.com/DanielCahya/url-shortener/internal/metrics"
 	"github.com/DanielCahya/url-shortener/internal/url"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -29,7 +30,7 @@ func (r *postgresClickEventRepository) Insert(ctx context.Context, event url.Cli
 		) ON CONFLICT (event_id) DO NOTHING
 	`
 
-	_, err := r.db.Exec(ctx, query,
+	tag, err := r.db.Exec(ctx, query,
 		uuid.NewString(),
 		event.EventID,
 		event.URLID,
@@ -40,6 +41,10 @@ func (r *postgresClickEventRepository) Insert(ctx context.Context, event url.Cli
 		event.Referrer,
 		event.Timestamp,
 	)
+
+	if err == nil && tag.RowsAffected() == 0 {
+		metrics.AnalyticsEventDuplicateTotal.Inc()
+	}
 
 	return err
 }

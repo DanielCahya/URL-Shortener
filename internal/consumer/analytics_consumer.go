@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/DanielCahya/url-shortener/internal/metrics"
 	"github.com/DanielCahya/url-shortener/internal/queue"
 	"github.com/DanielCahya/url-shortener/internal/repository"
 	"github.com/DanielCahya/url-shortener/internal/url"
@@ -52,6 +53,7 @@ func (c *AnalyticsConsumer) processDelivery(ctx context.Context, d amqp.Delivery
 	var event url.ClickEvent
 	if err := json.Unmarshal(d.Body, &event); err != nil {
 		log.Printf("Failed to unmarshal click event payload: %v", err)
+		metrics.AnalyticsEventFailedTotal.Inc()
 		// Reject without requeue, it will go to DLQ
 		_ = d.Reject(false)
 		return
@@ -64,6 +66,7 @@ func (c *AnalyticsConsumer) processDelivery(ctx context.Context, d amqp.Delivery
 
 	if err := c.repo.Insert(dbCtx, event); err != nil {
 		log.Printf("Failed to insert click event (EventID: %s): %v", event.EventID, err)
+		metrics.AnalyticsEventFailedTotal.Inc()
 		// Nack without requeue, we can rely on outbox publisher to retry if it wasn't marked published
 		// Actually, if DB is down, it will go to DLQ. 
 		_ = d.Nack(false, false)
@@ -73,5 +76,7 @@ func (c *AnalyticsConsumer) processDelivery(ctx context.Context, d amqp.Delivery
 	// Success, acknowledge the message
 	if err := d.Ack(false); err != nil {
 		log.Printf("Failed to ACK message (EventID: %s): %v", event.EventID, err)
+	} else {
+		metrics.AnalyticsEventProcessedTotal.Inc()
 	}
 }

@@ -22,9 +22,9 @@ func TestAuthRepository(t *testing.T) {
 	}
 	defer pool.Close()
 
-	// Clean up tables
-	_, _ = pool.Exec(context.Background(), "TRUNCATE TABLE refresh_tokens CASCADE")
-	_, _ = pool.Exec(context.Background(), "TRUNCATE TABLE users CASCADE")
+	// Clean up tables specific to this test
+	_, _ = pool.Exec(context.Background(), "DELETE FROM refresh_tokens WHERE user_id IN (SELECT id FROM users WHERE email IN ('test@example.com', 'tokenuser@example.com'))")
+	_, _ = pool.Exec(context.Background(), "DELETE FROM users WHERE email IN ('test@example.com', 'tokenuser@example.com')")
 
 	repo := repository.NewPostgresAuthRepository(pool)
 	ctx := context.Background()
