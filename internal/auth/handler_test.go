@@ -111,7 +111,7 @@ func TestAuthHandler_LoginUser(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, rr.Code)
 		var resp auth.TokenResponse
-		json.NewDecoder(rr.Body).Decode(&resp)
+		_ = json.NewDecoder(rr.Body).Decode(&resp)
 		assert.Equal(t, "access", resp.AccessToken)
 	})
 
@@ -148,7 +148,7 @@ func TestAuthHandler_RefreshTokens(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, rr.Code)
 		var resp auth.TokenResponse
-		json.NewDecoder(rr.Body).Decode(&resp)
+		_ = json.NewDecoder(rr.Body).Decode(&resp)
 		assert.Equal(t, "new-access", resp.AccessToken)
 		assert.Equal(t, "new-refresh", resp.RefreshToken)
 	})
@@ -221,7 +221,7 @@ func TestAuthHandler_GetProfile(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, rr.Code)
 		var resp auth.UserProfileResponse
-		json.NewDecoder(rr.Body).Decode(&resp)
+		_ = json.NewDecoder(rr.Body).Decode(&resp)
 		assert.Equal(t, "test@example.com", resp.Email)
 	})
 

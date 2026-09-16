@@ -21,7 +21,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres -d urlshortener"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -54,7 +54,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23' # Matches the builder image version in Dockerfile (if using 1.23) or we can use 1.22
+          go-version: '1.26.0'
           cache: true
 
       - name: Format Check
@@ -64,14 +64,20 @@ jobs:
             exit 1
           fi
 
+      - name: Download Dependencies
+        run: go mod download
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.61.0
-          args: --timeout=5m
+          version: latest
+          install-mode: goinstall
+          args: --timeout=5m ./...
 
-      - name: Download Dependencies
-        run: go mod download
+      - name: Run Database Migrations
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/urlshortener?sslmode=disable
+        run: go run ./cmd/migrate
 
       - name: Run Tests with Race Detector
         env:

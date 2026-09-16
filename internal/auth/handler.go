@@ -43,7 +43,7 @@ func (h *AuthHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(user)
+	_ = json.NewEncoder(w).Encode(user)
 }
 
 func (h *AuthHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
@@ -67,7 +67,7 @@ func (h *AuthHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(tokenResponse)
+	_ = json.NewEncoder(w).Encode(tokenResponse)
 }
 
 func (h *AuthHandler) RefreshTokens(w http.ResponseWriter, r *http.Request) {
@@ -90,7 +90,7 @@ func (h *AuthHandler) RefreshTokens(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(tokenResponse)
+	_ = json.NewEncoder(w).Encode(tokenResponse)
 }
 
 func (h *AuthHandler) LogoutUser(w http.ResponseWriter, r *http.Request) {
@@ -132,11 +132,11 @@ func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(profile)
+	_ = json.NewEncoder(w).Encode(profile)
 }
 
 func (h *AuthHandler) respondWithError(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(map[string]string{"error": message})
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
 }

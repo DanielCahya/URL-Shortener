@@ -49,7 +49,7 @@ CREATE TABLE idempotency_keys (
 	if err != nil {
 		t.Fatalf("failed to create idempotency_keys table: %v", err)
 	}
-	pool.Exec(ctx, "DELETE FROM idempotency_keys")
+	_, _ = pool.Exec(ctx, "DELETE FROM idempotency_keys")
 	redisClient.FlushDB(ctx)
 
 	return pool, redisClient
@@ -61,7 +61,7 @@ func TestIdempotencyMiddleware(t *testing.T) {
 		return
 	}
 	defer pool.Close()
-	defer redisClient.Close()
+	defer func() { _ = redisClient.Close() }()
 
 	repo := repository.NewPostgresIdempotencyRepository(pool)
 	idempotencyMiddleware := middleware.Idempotency(redisClient, repo)
@@ -73,7 +73,7 @@ func TestIdempotencyMiddleware(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(`{"short_code": "Abc123x"}`))
+		_, _ = w.Write([]byte(`{"short_code": "Abc123x"}`))
 	}))
 
 	userID := uuid.New()
@@ -107,12 +107,13 @@ func TestIdempotencyMiddleware(t *testing.T) {
 }
 
 func TestIdempotencyMiddleware_Concurrent(t *testing.T) {
+	t.Skip("Skipping concurrent test because of race condition in test DB setup")
 	pool, redisClient := setupTestDB(t)
 	if pool == nil {
 		return
 	}
 	defer pool.Close()
-	defer redisClient.Close()
+	defer func() { _ = redisClient.Close() }()
 
 	repo := repository.NewPostgresIdempotencyRepository(pool)
 	idempotencyMiddleware := middleware.Idempotency(redisClient, repo)
@@ -123,7 +124,7 @@ func TestIdempotencyMiddleware_Concurrent(t *testing.T) {
 		time.Sleep(500 * time.Millisecond) // Long running task to guarantee race condition
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(`{"success": true}`))
+		_, _ = w.Write([]byte(`{"success": true}`))
 	}))
 
 	userID := uuid.New()
@@ -132,7 +133,6 @@ func TestIdempotencyMiddleware_Concurrent(t *testing.T) {
 	var wg sync.WaitGroup
 	var results []int
 
-	t.Skip("Skipping concurrent test because of race condition in test DB setup")
 	var mu sync.Mutex
 
 	// Send 5 concurrent requests with the exact same idempotency key
@@ -179,7 +179,7 @@ func TestIdempotencyMiddleware_NoAuth(t *testing.T) {
 		return
 	}
 	defer pool.Close()
-	defer redisClient.Close()
+	defer func() { _ = redisClient.Close() }()
 
 	repo := repository.NewPostgresIdempotencyRepository(pool)
 	idempotencyMiddleware := middleware.Idempotency(redisClient, repo)

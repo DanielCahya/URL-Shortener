@@ -68,7 +68,7 @@ func main() {
 		// However, for this demo we'll exit on failure to ensure environment is fully healthy.
 		os.Exit(1)
 	}
-	defer redisClient.Close()
+	defer func() { _ = redisClient.Close() }()
 	log.Info("connected to Redis successfully")
 
 	// 5.5 Initialize RabbitMQ Client

@@ -1,6 +1,6 @@
 module github.com/DanielCahya/url-shortener
 
-go 1.26.4
+go 1.26.0
 
 require (
 	github.com/go-chi/chi/v5 v5.3.2
@@ -13,7 +13,7 @@ require (
 	github.com/rabbitmq/amqp091-go v1.14.0
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/crypto v0.57.0
+	golang.org/x/crypto v0.31.0
 )
 
 require (

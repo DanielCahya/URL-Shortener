@@ -52,7 +52,7 @@ func RateLimiter(redisClient *redis.Client, cfg *config.Config) func(next http.H
 				w.Header().Set("Content-Type", "application/json")
 				w.Header().Set("Retry-After", fmt.Sprintf("%d", cfg.RateLimitWindow))
 				w.WriteHeader(http.StatusTooManyRequests)
-				w.Write([]byte(`{"error": "rate limit exceeded"}`))
+				_, _ = w.Write([]byte(`{"error": "rate limit exceeded"}`))
 				return
 			}
 
