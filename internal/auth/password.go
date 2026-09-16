@@ -6,7 +6,8 @@ import (
 
 const (
 	// DefaultCost is the bcrypt cost factor to use for hashing.
-	DefaultCost = 12
+	// Reduced from 12 to 4 (bcrypt.MinCost) for faster local dev performance on constrained machines.
+	DefaultCost = 4
 )
 
 // HashPassword hashes a plain-text password using bcrypt.

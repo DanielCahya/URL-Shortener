@@ -68,7 +68,7 @@ func (c *AnalyticsConsumer) processDelivery(ctx context.Context, d amqp.Delivery
 		log.Printf("Failed to insert click event (EventID: %s): %v", event.EventID, err)
 		metrics.AnalyticsEventFailedTotal.Inc()
 		// Nack without requeue, we can rely on outbox publisher to retry if it wasn't marked published
-		// Actually, if DB is down, it will go to DLQ. 
+		// Actually, if DB is down, it will go to DLQ.
 		_ = d.Nack(false, false)
 		return
 	}

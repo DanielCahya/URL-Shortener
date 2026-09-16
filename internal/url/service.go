@@ -195,13 +195,13 @@ func (s *service) ResolveURL(ctx context.Context, req ResolveRequest) (string, e
 
 	// 5. Asynchronously record the click event in the outbox
 	// Even though it is recorded "asynchronously" relative to the redirect from the user's perspective (fire and forget),
-	// we do it in a non-blocking goroutine or synchronously. 
+	// we do it in a non-blocking goroutine or synchronously.
 	// Wait, the PDF says: "The redirect request must not synchronously perform analytics database operations."
 	// However, if we do it in a goroutine, what if the goroutine crashes before `outbox_events` is written?
-	// The outbox pattern usually means writing the outbox event in the same ACID transaction as the business entity. 
+	// The outbox pattern usually means writing the outbox event in the same ACID transaction as the business entity.
 	// But since this is a read (ResolveURL), there is no business entity transaction!
 	// Writing to outbox_events synchronously takes <2ms, but doing it in a goroutine takes 0ms for the redirect.
-	// We'll write to outbox_events synchronously but without blocking the HTTP response, OR just synchronously to ensure guaranteed delivery. 
+	// We'll write to outbox_events synchronously but without blocking the HTTP response, OR just synchronously to ensure guaranteed delivery.
 	// The PDF: "The redirect request must not synchronously perform analytics database operations... Return 307. The event is processed asynchronously."
 	// To strictly follow "must not synchronously perform analytics database operations", we could launch a goroutine to write to the outbox.
 	// But the outbox *is* the database operation. If we don't write it synchronously, we risk losing it on process crash.
@@ -211,7 +211,7 @@ func (s *service) ResolveURL(ctx context.Context, req ResolveRequest) (string, e
 	// Since there is no "business state" mutation during a redirect, we just insert the outbox event.
 	// If we must not do it synchronously, then what's the point of the outbox? We could just publish to RabbitMQ asynchronously.
 	// The intent is likely "Do not synchronously publish to RabbitMQ or update the heavy click_events tables." Writing to the append-only outbox table IS the fast synchronous part.
-	
+
 	// Let's parse user agent
 	ua := user_agent.New(req.UserAgent)
 	browser, _ := ua.Browser()
@@ -225,9 +225,9 @@ func (s *service) ResolveURL(ctx context.Context, req ResolveRequest) (string, e
 	}
 
 	clickEvent := ClickEvent{
-		EventID:         uuid.NewString(),
-		URLID:           urlID,
-		Timestamp:       time.Now().UTC(),
+		EventID:   uuid.NewString(),
+		URLID:     urlID,
+		Timestamp: time.Now().UTC(),
 	}
 
 	if req.IPCountry != "" {

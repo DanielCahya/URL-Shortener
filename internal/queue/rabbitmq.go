@@ -156,7 +156,7 @@ func (c *RabbitMQClient) Publish(ctx context.Context, payload []byte) error {
 			DeliveryMode: amqp.Persistent,
 			Body:         payload,
 		})
-	
+
 	if err != nil {
 		log.Printf("Failed to publish message: %v", err)
 		return err
