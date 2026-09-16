@@ -46,7 +46,7 @@ func TestTokenService(t *testing.T) {
 	})
 
 	t.Run("HashRefreshToken", func(t *testing.T) {
-		token := "my-opaque-token"
+		token := "my-opaque-token" //nolint:gosec
 		hash1 := auth.HashRefreshToken(token)
 		hash2 := auth.HashRefreshToken(token)
 

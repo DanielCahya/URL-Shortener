@@ -39,8 +39,8 @@ func Load() (*Config, error) {
 		ServerPort:        getEnv("SERVER_PORT", "8080"),
 		BaseURL:           getEnv("BASE_URL", "http://localhost:8080"),
 		DatabaseURL:       getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/urlshortener?sslmode=disable"),
-		DBMaxConns:        int32(getEnvAsInt("DB_MAX_CONNS", 25)),
-		DBMinConns:        int32(getEnvAsInt("DB_MIN_CONNS", 5)),
+		DBMaxConns:        int32(getEnvAsInt("DB_MAX_CONNS", 25)), //nolint:gosec
+		DBMinConns:        int32(getEnvAsInt("DB_MIN_CONNS", 5)),  //nolint:gosec
 		DBMaxConnLifetime: getEnvAsDuration("DB_MAX_CONN_LIFETIME", time.Hour),
 		DBMaxConnIdleTime: getEnvAsDuration("DB_MAX_CONN_IDLE_TIME", 30*time.Minute),
 		LogLevel:          getEnv("LOG_LEVEL", "info"),

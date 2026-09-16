@@ -45,7 +45,7 @@ func Idempotency(redisClient *redis.Client, repo repository.IdempotencyRepositor
 			if !ok {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusUnauthorized)
-				w.Write([]byte(`{"error": "idempotency requires authentication"}`))
+				_, _ = w.Write([]byte(`{"error": "idempotency requires authentication"}`))
 				return
 			}
 
@@ -70,7 +70,7 @@ func Idempotency(redisClient *redis.Client, repo repository.IdempotencyRepositor
 							w.Header().Set("Content-Type", "application/json")
 							w.Header().Set("X-Idempotent-Replayed", "true")
 							w.WriteHeader(*record.ResponseStatus)
-							w.Write(record.ResponseBody)
+							_, _ = w.Write(record.ResponseBody)
 							return
 						}
 					}
@@ -79,7 +79,7 @@ func Idempotency(redisClient *redis.Client, repo repository.IdempotencyRepositor
 
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusConflict)
-				w.Write([]byte(`{"error": "request already processing"}`))
+				_, _ = w.Write([]byte(`{"error": "request already processing"}`))
 				return
 			}
 
@@ -96,7 +96,7 @@ func Idempotency(redisClient *redis.Client, repo repository.IdempotencyRepositor
 					w.Header().Set("Content-Type", "application/json")
 					w.Header().Set("X-Idempotent-Replayed", "true")
 					w.WriteHeader(*record.ResponseStatus)
-					w.Write(record.ResponseBody)
+					_, _ = w.Write(record.ResponseBody)
 					return
 				}
 				// If it's failed or stuck in processing in DB, we could retry.
@@ -104,7 +104,7 @@ func Idempotency(redisClient *redis.Client, repo repository.IdempotencyRepositor
 				if record.Status == repository.IdempotencyStateProcessing {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusConflict)
-					w.Write([]byte(`{"error": "request already processing in db"}`))
+					_, _ = w.Write([]byte(`{"error": "request already processing in db"}`))
 					return
 				}
 			}
@@ -116,7 +116,7 @@ func Idempotency(redisClient *redis.Client, repo repository.IdempotencyRepositor
 				// Could be a unique constraint violation from a concurrent request that bypassed Redis
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusConflict)
-				w.Write([]byte(`{"error": "request already processing"}`))
+				_, _ = w.Write([]byte(`{"error": "request already processing"}`))
 				return
 			}
 
@@ -131,12 +131,12 @@ func Idempotency(redisClient *redis.Client, repo repository.IdempotencyRepositor
 
 			// Store the response
 			if rec.status >= 200 && rec.status < 300 {
-				repo.UpdateResponse(ctx, userID, idempotencyKey, rec.status, rec.body.Bytes())
+				_ = repo.UpdateResponse(ctx, userID, idempotencyKey, rec.status, rec.body.Bytes())
 			} else {
 				// If it failed (e.g. 400 Bad Request), we might mark as failed so they can retry
 				// Or we store the 400 so we don't re-process invalid data.
 				// Storing the 400 is safer idempotency.
-				repo.UpdateResponse(ctx, userID, idempotencyKey, rec.status, rec.body.Bytes())
+				_ = repo.UpdateResponse(ctx, userID, idempotencyKey, rec.status, rec.body.Bytes())
 			}
 		})
 	}

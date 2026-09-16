@@ -31,7 +31,7 @@ func setupRedis(t *testing.T) *redis.Client {
 
 func TestRateLimiter_Anonymous(t *testing.T) {
 	client := setupRedis(t)
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	cfg := &config.Config{
 		RateLimitAnon:   2,
@@ -78,7 +78,7 @@ func TestRateLimiter_Anonymous(t *testing.T) {
 
 func TestRateLimiter_Authenticated(t *testing.T) {
 	client := setupRedis(t)
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	cfg := &config.Config{
 		RateLimitAnon:   2,
@@ -121,7 +121,7 @@ func TestRateLimiter_FailOpen(t *testing.T) {
 		MaxRetries:  0,
 		DialTimeout: 10 * time.Millisecond,
 	})
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	cfg := &config.Config{
 		RateLimitAnon:   1, // Very strict limit
