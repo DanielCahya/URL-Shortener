@@ -97,7 +97,7 @@ func main() {
 
 	urlCache := cache.NewRedisURLCache(redisClient)
 	analyticsRepo := repository.NewPostgresAnalyticsRepository(outboxRepo)
-	urlService := url.NewService(urlRepo, urlCache, analyticsRepo, cfg.BaseURL)
+	urlService := url.NewService(urlRepo, urlCache, analyticsRepo, clickEventRepo, cfg.BaseURL)
 	authService := auth.NewAuthService(authRepo, tokenService) // no tokenService needed for register
 
 	// 7. Handler construction
@@ -138,6 +138,7 @@ func main() {
 	r.With(rateLimiter).Post("/api/v1/auth/logout", authHandler.LogoutUser)
 	r.With(auth.RequireAuth(tokenService), rateLimiter).Get("/api/v1/auth/me", authHandler.GetProfile)
 	r.With(auth.RequireAuth(tokenService), rateLimiter).Delete("/api/v1/urls/{short_code}", urlHandler.Delete)
+	r.With(auth.RequireAuth(tokenService), rateLimiter).Get("/api/v1/urls/{short_code}/analytics", urlHandler.GetAnalytics)
 	r.With(rateLimiter).Get("/{short_code}", urlHandler.Redirect)
 
 	// 9. HTTP server startup

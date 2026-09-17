@@ -19,3 +19,14 @@ type ClickEvent struct {
 type AnalyticsRepository interface {
 	RecordClick(ctx context.Context, event ClickEvent) error
 }
+
+type AnalyticsStats struct {
+	TotalClicks int64            `json:"total_clicks"`
+	ByCountry   map[string]int64 `json:"by_country"`
+	ByDevice    map[string]int64 `json:"by_device"`
+	ByBrowser   map[string]int64 `json:"by_browser"`
+}
+
+type StatsRepository interface {
+	GetStats(ctx context.Context, urlID string) (*AnalyticsStats, error)
+}

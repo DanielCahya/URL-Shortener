@@ -20,9 +20,10 @@ func mockRequestIDMiddleware(next http.Handler) http.Handler {
 }
 
 type mockService struct {
-	createFunc  func(ctx context.Context, req CreateURLRequest) (*URLResponse, error)
-	resolveFunc func(ctx context.Context, req ResolveRequest) (string, error)
-	deleteFunc  func(ctx context.Context, shortCode string) error
+	createFunc    func(ctx context.Context, req CreateURLRequest) (*URLResponse, error)
+	resolveFunc   func(ctx context.Context, req ResolveRequest) (string, error)
+	deleteFunc    func(ctx context.Context, shortCode string) error
+	analyticsFunc func(ctx context.Context, shortCode string) (*AnalyticsStats, error)
 }
 
 func (m *mockService) CreateURL(ctx context.Context, req CreateURLRequest) (*URLResponse, error) {
@@ -44,6 +45,13 @@ func (m *mockService) DeleteURL(ctx context.Context, shortCode string) error {
 		return m.deleteFunc(ctx, shortCode)
 	}
 	return nil
+}
+
+func (m *mockService) GetAnalytics(ctx context.Context, shortCode string) (*AnalyticsStats, error) {
+	if m.analyticsFunc != nil {
+		return m.analyticsFunc(ctx, shortCode)
+	}
+	return nil, nil
 }
 
 func TestHandler_Create(t *testing.T) {
