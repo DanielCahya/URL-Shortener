@@ -24,6 +24,7 @@ type mockService struct {
 	resolveFunc   func(ctx context.Context, req ResolveRequest) (string, error)
 	deleteFunc    func(ctx context.Context, shortCode string) error
 	analyticsFunc func(ctx context.Context, shortCode string) (*AnalyticsStats, error)
+	listFunc      func(ctx context.Context) ([]URLResponse, error)
 }
 
 func (m *mockService) CreateURL(ctx context.Context, req CreateURLRequest) (*URLResponse, error) {
@@ -50,6 +51,13 @@ func (m *mockService) DeleteURL(ctx context.Context, shortCode string) error {
 func (m *mockService) GetAnalytics(ctx context.Context, shortCode string) (*AnalyticsStats, error) {
 	if m.analyticsFunc != nil {
 		return m.analyticsFunc(ctx, shortCode)
+	}
+	return nil, nil
+}
+
+func (m *mockService) ListURLs(ctx context.Context) ([]URLResponse, error) {
+	if m.listFunc != nil {
+		return m.listFunc(ctx)
 	}
 	return nil, nil
 }

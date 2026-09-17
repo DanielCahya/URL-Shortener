@@ -130,9 +130,28 @@ func (h *Handler) GetAnalytics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.writeJSON(w, http.StatusOK, stats)
+}
+
+// List handles listing all URLs for the authenticated user
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+	urls, err := h.service.ListURLs(r.Context())
+	if err != nil {
+		if errors.Is(err, auth.ErrUnauthorized) {
+			h.writeError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "authentication required")
+			return
+		}
+		h.writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list urls")
+		return
+	}
+
+	h.writeJSON(w, http.StatusOK, urls)
+}
+
+func (h *Handler) writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(stats)
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, status int, code, message string) {

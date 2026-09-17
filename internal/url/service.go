@@ -23,6 +23,7 @@ type Repository interface {
 	Create(ctx context.Context, url *URL) error
 	GetByShortCode(ctx context.Context, shortCode string) (*URL, error)
 	Delete(ctx context.Context, shortCode string, userID uuid.UUID) error
+	ListByUserID(ctx context.Context, userID uuid.UUID) ([]*URL, error)
 }
 
 type ResolveRequest struct {
@@ -38,6 +39,7 @@ type Service interface {
 	ResolveURL(ctx context.Context, req ResolveRequest) (string, error)
 	DeleteURL(ctx context.Context, shortCode string) error
 	GetAnalytics(ctx context.Context, shortCode string) (*AnalyticsStats, error)
+	ListURLs(ctx context.Context) ([]URLResponse, error)
 }
 
 type service struct {
@@ -309,6 +311,25 @@ func (s *service) GetAnalytics(ctx context.Context, shortCode string) (*Analytic
 
 	// 3. Query stats repository
 	return s.statsRepo.GetStats(ctx, u.ID)
+}
+
+func (s *service) ListURLs(ctx context.Context) ([]URLResponse, error) {
+	userID, ok := auth.UserIDFromContext(ctx)
+	if !ok {
+		return nil, auth.ErrUnauthorized
+	}
+
+	urls, err := s.repo.ListByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	responses := make([]URLResponse, 0, len(urls))
+	for _, u := range urls {
+		responses = append(responses, *s.toResponse(u))
+	}
+
+	return responses, nil
 }
 
 func (s *service) toResponse(u *URL) *URLResponse {

@@ -17,6 +17,7 @@ type URLRepository interface {
 	Create(ctx context.Context, u *url.URL) error
 	GetByShortCode(ctx context.Context, shortCode string) (*url.URL, error)
 	Delete(ctx context.Context, shortCode string, userID uuid.UUID) error
+	ListByUserID(ctx context.Context, userID uuid.UUID) ([]*url.URL, error)
 }
 
 type postgresURLRepository struct {
@@ -99,4 +100,43 @@ func (r *postgresURLRepository) Delete(ctx context.Context, shortCode string, us
 	}
 
 	return nil
+}
+
+func (r *postgresURLRepository) ListByUserID(ctx context.Context, userID uuid.UUID) ([]*url.URL, error) {
+	query := `
+		SELECT id, user_id, short_code, original_url, expires_at, created_at, updated_at, deleted_at
+		FROM urls
+		WHERE user_id = $1 AND deleted_at IS NULL
+		ORDER BY created_at DESC
+	`
+	rows, err := r.pool.Query(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list urls: %w", err)
+	}
+	defer rows.Close()
+
+	var urls []*url.URL
+	for rows.Next() {
+		var u url.URL
+		err := rows.Scan(
+			&u.ID,
+			&u.UserID,
+			&u.ShortCode,
+			&u.OriginalURL,
+			&u.ExpiresAt,
+			&u.CreatedAt,
+			&u.UpdatedAt,
+			&u.DeletedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan url: %w", err)
+		}
+		urls = append(urls, &u)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating urls: %w", err)
+	}
+
+	return urls, nil
 }
