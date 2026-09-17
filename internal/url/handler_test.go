@@ -19,6 +19,8 @@ func mockRequestIDMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+var _ Service = (*mockService)(nil)
+
 type mockService struct {
 	createFunc    func(ctx context.Context, req CreateURLRequest) (*URLResponse, error)
 	resolveFunc   func(ctx context.Context, req ResolveRequest) (string, error)

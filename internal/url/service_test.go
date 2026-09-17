@@ -9,6 +9,8 @@ import (
 	"github.com/google/uuid"
 )
 
+var _ Repository = (*mockRepository)(nil)
+
 type mockRepository struct {
 	mu            sync.Mutex
 	urls          map[string]*URL
@@ -48,6 +50,20 @@ func (m *mockRepository) GetByShortCode(ctx context.Context, shortCode string) (
 		return nil, ErrNotFound
 	}
 	return u, nil
+}
+
+func (m *mockRepository) ListByUserID(ctx context.Context, userID uuid.UUID) ([]*URL, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	urls := make([]*URL, 0)
+	for _, u := range m.urls {
+		if u.UserID != nil && *u.UserID == userID {
+			urls = append(urls, u)
+		}
+	}
+
+	return urls, nil
 }
 
 func (m *mockRepository) Delete(ctx context.Context, shortCode string, userID uuid.UUID) error {
