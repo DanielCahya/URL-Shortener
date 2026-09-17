@@ -37,21 +37,24 @@ type Service interface {
 	CreateURL(ctx context.Context, req CreateURLRequest) (*URLResponse, error)
 	ResolveURL(ctx context.Context, req ResolveRequest) (string, error)
 	DeleteURL(ctx context.Context, shortCode string) error
+	GetAnalytics(ctx context.Context, shortCode string) (*AnalyticsStats, error)
 }
 
 type service struct {
 	repo          Repository
 	cache         Cache
 	analyticsRepo AnalyticsRepository
+	statsRepo     StatsRepository
 	baseURL       string
 }
 
 // NewService creates a new URL service.
-func NewService(repo Repository, cache Cache, analyticsRepo AnalyticsRepository, baseURL string) Service {
+func NewService(repo Repository, cache Cache, analyticsRepo AnalyticsRepository, statsRepo StatsRepository, baseURL string) Service {
 	return &service{
 		repo:          repo,
 		cache:         cache,
 		analyticsRepo: analyticsRepo,
+		statsRepo:     statsRepo,
 		baseURL:       strings.TrimRight(baseURL, "/"),
 	}
 }
@@ -280,6 +283,32 @@ func (s *service) DeleteURL(ctx context.Context, shortCode string) error {
 	}
 
 	return nil
+}
+
+func (s *service) GetAnalytics(ctx context.Context, shortCode string) (*AnalyticsStats, error) {
+	code := strings.TrimSpace(shortCode)
+	if code == "" {
+		return nil, ErrNotFound
+	}
+
+	// 1. Check if user is logged in
+	userID, ok := auth.UserIDFromContext(ctx)
+	if !ok {
+		return nil, auth.ErrUnauthorized
+	}
+
+	// 2. Fetch URL to verify existence and ownership
+	u, err := s.repo.GetByShortCode(ctx, code)
+	if err != nil {
+		return nil, err
+	}
+
+	if u.UserID == nil || u.UserID.String() != userID.String() {
+		return nil, ErrNotFound // Hide the fact that it exists from unauthorized users
+	}
+
+	// 3. Query stats repository
+	return s.statsRepo.GetStats(ctx, u.ID)
 }
 
 func (s *service) toResponse(u *URL) *URLResponse {

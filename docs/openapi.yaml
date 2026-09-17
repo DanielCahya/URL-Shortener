@@ -1,0 +1,299 @@
+openapi: 3.0.3
+info:
+  title: URL Shortener API
+  description: A high-performance URL shortener API built with Go, PostgreSQL, Redis, and RabbitMQ.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+paths:
+  /health/live:
+    get:
+      summary: Liveness Probe
+      description: Check if the application is running.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: up
+  /health/ready:
+    get:
+      summary: Readiness Probe
+      description: Check if the application and its dependencies are ready to accept traffic.
+      responses:
+        '200':
+          description: Ready
+        '503':
+          description: Service Unavailable
+
+  /api/v1/auth/register:
+    post:
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+      responses:
+        '201':
+          description: User registered successfully
+        '400':
+          description: Bad request
+        '409':
+          description: User already exists
+
+  /api/v1/auth/login:
+    post:
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Invalid credentials
+
+  /api/v1/auth/refresh:
+    post:
+      summary: Refresh Access Token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Successful token refresh
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Invalid refresh token
+
+  /api/v1/auth/logout:
+    post:
+      summary: Logout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '204':
+          description: Logged out successfully
+
+  /api/v1/auth/me:
+    get:
+      summary: Get Current User Profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successful response
+        '401':
+          description: Unauthorized
+
+  /api/v1/urls:
+    post:
+      summary: Create a Short URL
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - original_url
+              properties:
+                original_url:
+                  type: string
+                  format: uri
+                custom_alias:
+                  type: string
+                expires_at:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: URL Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/URLResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '409':
+          description: Conflict (Alias taken or Idempotency replay)
+
+  /api/v1/urls/{short_code}:
+    delete:
+      summary: Delete a Short URL
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: short_code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: URL deleted successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: URL not found
+
+  /api/v1/urls/{short_code}/analytics:
+    get:
+      summary: Get URL Analytics
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: short_code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsStats'
+        '401':
+          description: Unauthorized
+        '404':
+          description: URL not found or you do not have permission to view it
+
+  /{short_code}:
+    get:
+      summary: Redirect to Original URL
+      parameters:
+        - name: short_code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '307':
+          description: Temporary Redirect to the original URL
+        '404':
+          description: URL not found
+        '410':
+          description: URL expired
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+          description: Expiry time in seconds
+
+    URLResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        short_code:
+          type: string
+        short_url:
+          type: string
+        original_url:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    AnalyticsStats:
+      type: object
+      properties:
+        total_clicks:
+          type: integer
+        by_country:
+          type: object
+          additionalProperties:
+            type: integer
+        by_device:
+          type: object
+          additionalProperties:
+            type: integer
+        by_browser:
+          type: object
+          additionalProperties:
+            type: integer

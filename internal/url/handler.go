@@ -109,6 +109,32 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// GetAnalytics handles requests to view analytics for a short URL.
+func (h *Handler) GetAnalytics(w http.ResponseWriter, r *http.Request) {
+	shortCode := chi.URLParam(r, "short_code")
+	if shortCode == "" {
+		h.writeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "Short code is required")
+		return
+	}
+
+	stats, err := h.service.GetAnalytics(r.Context(), shortCode)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrNotFound):
+			h.writeError(w, r, http.StatusNotFound, "URL_NOT_FOUND", "The requested URL does not exist or you do not have permission to view it")
+		case errors.Is(err, auth.ErrUnauthorized):
+			h.writeError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "You must be logged in to view analytics")
+		default:
+			h.writeError(w, r, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "An internal error occurred")
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(stats)
+}
+
 func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, status int, code, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
