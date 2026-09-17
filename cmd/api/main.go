@@ -131,6 +131,7 @@ func main() {
 	r.Get("/metrics", promhttp.Handler().ServeHTTP)
 	r.Get("/health/live", healthHandler.Live)
 	r.Get("/health/ready", healthHandler.Ready)
+	r.With(auth.RequireAuth(tokenService), rateLimiter).Get("/api/v1/urls", urlHandler.List)
 	r.With(auth.RequireAuth(tokenService), rateLimiter, idempotencyMiddleware).Post("/api/v1/urls", urlHandler.Create)
 	r.With(rateLimiter).Post("/api/v1/auth/register", authHandler.RegisterUser)
 	r.With(rateLimiter).Post("/api/v1/auth/login", authHandler.LoginUser)
