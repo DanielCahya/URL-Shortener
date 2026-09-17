@@ -72,7 +72,7 @@ func TestService_CreateURL(t *testing.T) {
 
 	t.Run("successful random generation", func(t *testing.T) {
 		repo := newMockRepository()
-		svc := NewService(repo, nil, nil, "http://localhost:8080")
+		svc := NewService(repo, nil, nil, nil, "http://localhost:8080")
 
 		resp, err := svc.CreateURL(ctx, CreateURLRequest{
 			OriginalURL: "https://example.com/item/123",
@@ -97,7 +97,7 @@ func TestService_CreateURL(t *testing.T) {
 
 	t.Run("invalid url schemes", func(t *testing.T) {
 		repo := newMockRepository()
-		svc := NewService(repo, nil, nil, "http://localhost:8080")
+		svc := NewService(repo, nil, nil, nil, "http://localhost:8080")
 
 		invalidURLs := []string{
 			"",
@@ -117,7 +117,7 @@ func TestService_CreateURL(t *testing.T) {
 
 	t.Run("expiration in past returns error", func(t *testing.T) {
 		repo := newMockRepository()
-		svc := NewService(repo, nil, nil, "http://localhost:8080")
+		svc := NewService(repo, nil, nil, nil, "http://localhost:8080")
 
 		past := time.Now().UTC().Add(-1 * time.Hour)
 		_, err := svc.CreateURL(ctx, CreateURLRequest{
@@ -131,7 +131,7 @@ func TestService_CreateURL(t *testing.T) {
 
 	t.Run("custom alias success", func(t *testing.T) {
 		repo := newMockRepository()
-		svc := NewService(repo, nil, nil, "http://localhost:8080")
+		svc := NewService(repo, nil, nil, nil, "http://localhost:8080")
 
 		alias := "custom-doc"
 		resp, err := svc.CreateURL(ctx, CreateURLRequest{
@@ -148,7 +148,7 @@ func TestService_CreateURL(t *testing.T) {
 
 	t.Run("custom alias duplicate returns error", func(t *testing.T) {
 		repo := newMockRepository()
-		svc := NewService(repo, nil, nil, "http://localhost:8080")
+		svc := NewService(repo, nil, nil, nil, "http://localhost:8080")
 
 		alias := "my-project"
 		_, err := svc.CreateURL(ctx, CreateURLRequest{
@@ -171,7 +171,7 @@ func TestService_CreateURL(t *testing.T) {
 	t.Run("collision retry logic succeeds within limit", func(t *testing.T) {
 		repo := newMockRepository()
 		repo.failCount = 2 // fail first 2 attempts
-		svc := NewService(repo, nil, nil, "http://localhost:8080")
+		svc := NewService(repo, nil, nil, nil, "http://localhost:8080")
 
 		resp, err := svc.CreateURL(ctx, CreateURLRequest{
 			OriginalURL: "https://example.com/test",
@@ -190,7 +190,7 @@ func TestService_CreateURL(t *testing.T) {
 	t.Run("collision retry exceeds limit", func(t *testing.T) {
 		repo := newMockRepository()
 		repo.failCount = 10 // exceed MaxCollisionRetries (5)
-		svc := NewService(repo, nil, nil, "http://localhost:8080")
+		svc := NewService(repo, nil, nil, nil, "http://localhost:8080")
 
 		_, err := svc.CreateURL(ctx, CreateURLRequest{
 			OriginalURL: "https://example.com/test",
@@ -204,7 +204,7 @@ func TestService_CreateURL(t *testing.T) {
 func TestService_ResolveURL(t *testing.T) {
 	ctx := context.Background()
 	repo := newMockRepository()
-	svc := NewService(repo, nil, nil, "http://localhost:8080")
+	svc := NewService(repo, nil, nil, nil, "http://localhost:8080")
 
 	// Pre-populate active URL
 	_ = repo.Create(ctx, &URL{
