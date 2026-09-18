@@ -32,6 +32,9 @@ COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 # Copy the compiled binary from the builder stage
 COPY --from=builder /app/api /api
 
+# Copy the frontend files so the API can serve them
+COPY --from=builder /app/frontend /frontend
+
 # Expose the port the API runs on
 EXPOSE 8080
 

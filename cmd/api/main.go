@@ -131,6 +131,13 @@ func main() {
 	r.Get("/metrics", promhttp.Handler().ServeHTTP)
 	r.Get("/health/live", healthHandler.Live)
 	r.Get("/health/ready", healthHandler.Ready)
+
+	// Frontend routes
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "frontend/index.html")
+	})
+	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("./frontend/static"))))
+
 	r.With(auth.RequireAuth(tokenService), rateLimiter).Get("/api/v1/urls", urlHandler.List)
 	r.With(auth.RequireAuth(tokenService), rateLimiter, idempotencyMiddleware).Post("/api/v1/urls", urlHandler.Create)
 	r.With(rateLimiter).Post("/api/v1/auth/register", authHandler.RegisterUser)

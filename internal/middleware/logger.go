@@ -34,12 +34,14 @@ func Logger(log *slog.Logger) func(next http.Handler) http.Handler {
 
 			latency := time.Since(start).Milliseconds()
 
-			log.InfoContext(r.Context(), "request handled",
-				slog.String("method", r.Method),
-				slog.String("path", r.URL.Path),
-				slog.Int("status", wrapped.statusCode),
-				slog.Int64("latency_ms", latency),
-			)
+			if r.URL.Path != "/metrics" && r.URL.Path != "/health/live" && r.URL.Path != "/health/ready" {
+				log.InfoContext(r.Context(), "request handled",
+					slog.String("method", r.Method),
+					slog.String("path", r.URL.Path),
+					slog.Int("status", wrapped.statusCode),
+					slog.Int64("latency_ms", latency),
+				)
+			}
 		})
 	}
 }
