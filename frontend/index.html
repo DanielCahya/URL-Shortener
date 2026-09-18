@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shorter - Premium URL Shortener</title>
+    <meta name="description" content="A high-performance URL shortener">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div id="toast-container"></div>
+    <!-- Background removed for minimal tech tone -->
+
+    <div id="auth-view" class="view hidden">
+        <div class="glass-card auth-card">
+            <h1 class="logo">Shorter<span class="dot">.</span></h1>
+            <p class="subtitle">Log in to manage your links.</p>
+            
+            <div class="tabs">
+                <button class="tab active" data-target="login">Log In</button>
+                <button class="tab" data-target="register">Register</button>
+            </div>
+
+            <form id="auth-form">
+                <div class="input-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" required placeholder="you@example.com">
+                </div>
+                <div class="input-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn primary full-width" id="auth-submit">Log In</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="app-view" class="view hidden">
+        <nav class="navbar glass-card">
+            <h1 class="logo">Shorter<span class="dot">.</span></h1>
+            <div class="nav-right">
+                <span id="user-email" class="user-email"></span>
+                <button id="logout-btn" class="btn outline small">Logout</button>
+            </div>
+        </nav>
+
+        <main class="container">
+            <section class="shortener-section glass-card">
+                <h2>Shorten a new link</h2>
+                <form id="shortener-form" class="shortener-form">
+                    <div class="input-group">
+                        <input type="url" id="original_url" required placeholder="https://very-long-url.com/some/path">
+                    </div>
+                    <div class="row">
+                        <div class="input-group">
+                            <input type="text" id="custom_alias" placeholder="Custom alias (optional)">
+                        </div>
+                        <button type="submit" class="btn primary">Shorten</button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="links-section">
+                <h2>Your Links</h2>
+                <div class="links-header">
+                    <div class="col">Original URL</div>
+                    <div class="col">Short URL</div>
+                    <div class="col">Created</div>
+                    <div class="col actions">Actions</div>
+                </div>
+                <div id="links-list" class="links-list">
+                    <!-- Links populated by JS -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Analytics Modal -->
+    <div id="analytics-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content glass-card">
+            <button class="modal-close" id="close-modal">&times;</button>
+            <h2>Analytics</h2>
+            <p class="subtitle" id="analytics-short-url"></p>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Clicks</h3>
+                    <p class="stat-value" id="stat-total-clicks">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Top Country</h3>
+                    <p class="stat-value" id="stat-top-country">-</p>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-box">
+                    <h4>Devices</h4>
+                    <ul id="device-list" class="data-list"></ul>
+                </div>
+                <div class="chart-box">
+                    <h4>Browsers</h4>
+                    <ul id="browser-list" class="data-list"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

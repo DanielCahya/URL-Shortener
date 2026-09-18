@@ -96,9 +96,9 @@ You can spin up the entire stack (API, PostgreSQL, Redis, RabbitMQ, Prometheus, 
    ```
 
 3. **Access the application:**
-   - **API:** `http://localhost:8080`
-   - **Grafana:** `http://localhost:3000` (Login: `admin` / `admin`)
-   - **RabbitMQ Management:** `http://localhost:15672` (Login: `guest` / `guest`)
+   - **API:** `http://127.0.0.1:8080`
+   - **Grafana:** `http://127.0.0.1:3000` (Login: `admin` / `admin`)
+   - **RabbitMQ Management:** `http://127.0.0.1:15672` (Login: `guest` / `guest`)
 
 4. **Stop the services:**
    ```bash
