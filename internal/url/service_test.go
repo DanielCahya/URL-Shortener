@@ -66,6 +66,31 @@ func (m *mockRepository) ListByUserID(ctx context.Context, userID uuid.UUID) ([]
 	return urls, nil
 }
 
+func (m *mockRepository) ConsumeURL(ctx context.Context, shortCode string) (*URL, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, exists := m.urls[shortCode]
+	if !exists {
+		return nil, ErrNotFound
+	}
+	u.AccessCount++
+	return u, nil
+}
+
+func (m *mockRepository) UpdateEnabled(ctx context.Context, shortCode string, userID uuid.UUID, isEnabled bool) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, exists := m.urls[shortCode]
+	if !exists {
+		return ErrNotFound
+	}
+	if u.UserID == nil || *u.UserID != userID {
+		return ErrNotFound
+	}
+	u.IsEnabled = isEnabled
+	return nil
+}
+
 func (m *mockRepository) Delete(ctx context.Context, shortCode string, userID uuid.UUID) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -227,6 +252,7 @@ func TestService_ResolveURL(t *testing.T) {
 		ID:          "url-1",
 		ShortCode:   "active1",
 		OriginalURL: "https://example.com/active",
+		IsEnabled:   true,
 	})
 
 	// Pre-populate expired URL
@@ -236,6 +262,7 @@ func TestService_ResolveURL(t *testing.T) {
 		ShortCode:   "expired1",
 		OriginalURL: "https://example.com/expired",
 		ExpiresAt:   &past,
+		IsEnabled:   true,
 	})
 
 	t.Run("resolve existing active url", func(t *testing.T) {

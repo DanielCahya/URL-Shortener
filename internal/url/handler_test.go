@@ -27,6 +27,8 @@ type mockService struct {
 	deleteFunc    func(ctx context.Context, shortCode string) error
 	analyticsFunc func(ctx context.Context, shortCode string) (*AnalyticsStats, error)
 	listFunc      func(ctx context.Context) ([]URLResponse, error)
+	unlockFunc    func(ctx context.Context, shortCode, password string) (string, error)
+	enableFunc    func(ctx context.Context, shortCode string, isEnabled bool) error
 }
 
 func (m *mockService) CreateURL(ctx context.Context, req CreateURLRequest) (*URLResponse, error) {
@@ -41,6 +43,20 @@ func (m *mockService) ResolveURL(ctx context.Context, req ResolveRequest) (strin
 		return m.resolveFunc(ctx, req)
 	}
 	return "", nil
+}
+
+func (m *mockService) UnlockURL(ctx context.Context, shortCode, password string) (string, error) {
+	if m.unlockFunc != nil {
+		return m.unlockFunc(ctx, shortCode, password)
+	}
+	return "", nil
+}
+
+func (m *mockService) UpdateEnabled(ctx context.Context, shortCode string, isEnabled bool) error {
+	if m.enableFunc != nil {
+		return m.enableFunc(ctx, shortCode, isEnabled)
+	}
+	return nil
 }
 
 func (m *mockService) DeleteURL(ctx context.Context, shortCode string) error {

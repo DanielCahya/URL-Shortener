@@ -96,7 +96,22 @@ function setupEventListeners() {
         e.preventDefault();
         const original_url = originalUrlInput.value;
         const custom_alias = customAliasInput.value || null;
+        const passwordInputEl = document.getElementById('link_password');
+        const maxAccessesInputEl = document.getElementById('max_accesses');
+        const password = passwordInputEl ? passwordInputEl.value : null;
+        const max_accesses = maxAccessesInputEl && maxAccessesInputEl.value ? parseInt(maxAccessesInputEl.value, 10) : null;
         const submitBtn = shortenerForm.querySelector('button');
+
+        const payload = { original_url };
+        if (custom_alias) {
+            payload.custom_alias = custom_alias;
+        }
+        if (password) {
+            payload.password = password;
+        }
+        if (max_accesses) {
+            payload.max_accesses = max_accesses;
+        }
 
         try {
             submitBtn.disabled = true;
@@ -105,11 +120,13 @@ function setupEventListeners() {
             const idempotencyKey = crypto.randomUUID();
             const headers = { 'Idempotency-Key': idempotencyKey };
             
-            await fetchAPI('/urls', 'POST', { original_url, custom_alias }, headers);
+            await fetchAPI('/urls', 'POST', payload, headers);
             
             showToast('URL shortened successfully!', 'success');
             originalUrlInput.value = '';
             customAliasInput.value = '';
+            if (passwordInputEl) passwordInputEl.value = '';
+            if (maxAccessesInputEl) maxAccessesInputEl.value = '';
             loadDashboard();
         } catch (err) {
             showToast(err.message || 'Failed to shorten URL', 'error');
@@ -164,34 +181,73 @@ function renderLinks(urls) {
         return;
     }
 
-    urls.forEach(url => {
-        const card = document.createElement('div');
-        card.className = 'link-card glass-card';
-        
-        const shortUrl = url.short_url;
-        const displayDate = new Date(url.created_at).toLocaleDateString();
-
-        card.innerHTML = `
+    linksList.innerHTML = urls.map(url => `
+        <div class="link-card glass-card ${url.is_enabled === false ? 'disabled' : ''}">
             <div class="col original-url" title="${url.original_url}">
                 ${url.original_url}
             </div>
             <div class="col short-url">
-                <a href="${shortUrl}" target="_blank">${shortUrl.replace(/^https?:\/\//, '')}</a>
+                <a href="${url.short_url}" target="_blank">${url.short_url.replace(/^https?:\/\//, '')}</a>
             </div>
             <div class="col created-at">
-                ${displayDate}
+                ${new Date(url.created_at).toLocaleDateString()}
             </div>
-            <div class="col actions-group">
-                <button class="btn outline small" onclick="copyToClipboard('${shortUrl}')">Copy</button>
-                <button class="btn outline small" onclick="openAnalytics('${url.short_code}', '${shortUrl}')">Stats</button>
+            <div class="col actions actions-group">
+                <button class="btn outline small" onclick="showQR('${url.short_code}', '${url.short_url}')" title="Show QR">QR</button>
+                <button class="btn outline small" onclick="toggleEnable('${url.short_code}', ${url.is_enabled !== false})" title="${url.is_enabled === false ? 'Enable' : 'Disable'}">
+                    ${url.is_enabled === false ? 'Enable' : 'Disable'}
+                </button>
+                <button class="btn outline small" onclick="openAnalytics('${url.short_code}', '${url.short_url}')">Stats</button>
                 <button class="btn danger small" onclick="deleteUrl('${url.short_code}')">Delete</button>
             </div>
-        `;
-        linksList.appendChild(card);
-    });
+        </div>
+    `).join('');
 }
 
 // Actions
+window.showQR = function(shortCode, url) {
+    const modal = document.getElementById('qr-modal');
+    const canvas = document.getElementById('qr-modal-canvas');
+    document.getElementById('qr-modal-url').textContent = url;
+    
+    // Generate QR (black QR on white background for scanning reliability)
+    new QRious({
+        element: canvas,
+        value: url,
+        size: 250,
+        background: 'white',
+        foreground: 'black'
+    });
+    
+    // Set up download button
+    const downloadBtn = document.getElementById('download-qr-btn');
+    downloadBtn.onclick = function() {
+        const link = document.createElement('a');
+        link.download = 'qr-' + shortCode + '.png';
+        link.href = canvas.toDataURL();
+        link.click();
+    };
+    
+    modal.classList.remove('hidden');
+};
+
+document.getElementById('close-qr-modal')?.addEventListener('click', () => {
+    document.getElementById('qr-modal').classList.add('hidden');
+});
+document.getElementById('qr-modal')?.querySelector('.modal-overlay')?.addEventListener('click', () => {
+    document.getElementById('qr-modal').classList.add('hidden');
+});
+
+window.toggleEnable = async function(shortCode, currentState) {
+    try {
+        await fetchAPI(`/urls/${shortCode}/enable`, 'PUT', { is_enabled: !currentState });
+        showToast(`Link ${!currentState ? 'enabled' : 'disabled'} successfully`, 'success');
+        loadDashboard();
+    } catch (err) {
+        showToast(err.message || 'Failed to toggle link', 'error');
+    }
+};
+
 window.copyToClipboard = async (text) => {
     try {
         await navigator.clipboard.writeText(text);

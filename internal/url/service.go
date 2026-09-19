@@ -22,6 +22,8 @@ const (
 type Repository interface {
 	Create(ctx context.Context, url *URL) error
 	GetByShortCode(ctx context.Context, shortCode string) (*URL, error)
+	ConsumeURL(ctx context.Context, shortCode string) (*URL, error)
+	UpdateEnabled(ctx context.Context, shortCode string, userID uuid.UUID, isEnabled bool) error
 	Delete(ctx context.Context, shortCode string, userID uuid.UUID) error
 	ListByUserID(ctx context.Context, userID uuid.UUID) ([]*URL, error)
 }
@@ -37,6 +39,8 @@ type ResolveRequest struct {
 type Service interface {
 	CreateURL(ctx context.Context, req CreateURLRequest) (*URLResponse, error)
 	ResolveURL(ctx context.Context, req ResolveRequest) (string, error)
+	UnlockURL(ctx context.Context, shortCode, password string) (string, error)
+	UpdateEnabled(ctx context.Context, shortCode string, isEnabled bool) error
 	DeleteURL(ctx context.Context, shortCode string) error
 	GetAnalytics(ctx context.Context, shortCode string) (*AnalyticsStats, error)
 	ListURLs(ctx context.Context) ([]URLResponse, error)
@@ -79,6 +83,15 @@ func (s *service) CreateURL(ctx context.Context, req CreateURLRequest) (*URLResp
 		return nil, ErrExpirationInPast
 	}
 
+	var pwdHash *string
+	if req.Password != nil && *req.Password != "" {
+		hash, err := auth.HashPassword(*req.Password)
+		if err != nil {
+			return nil, fmt.Errorf("failed to hash password: %w", err)
+		}
+		pwdHash = &hash
+	}
+
 	// 3. Handle Custom Alias vs Generated Short Code
 	if req.CustomAlias != nil && strings.TrimSpace(*req.CustomAlias) != "" {
 		alias := strings.TrimSpace(*req.CustomAlias)
@@ -87,12 +100,15 @@ func (s *service) CreateURL(ctx context.Context, req CreateURLRequest) (*URLResp
 		}
 
 		u := &URL{
-			ID:          uuid.NewString(),
-			ShortCode:   alias,
-			OriginalURL: trimmedURL,
-			ExpiresAt:   req.ExpiresAt,
-			CreatedAt:   now,
-			UpdatedAt:   now,
+			ID:           uuid.NewString(),
+			ShortCode:    alias,
+			OriginalURL:  trimmedURL,
+			ExpiresAt:    req.ExpiresAt,
+			MaxAccesses:  req.MaxAccesses,
+			PasswordHash: pwdHash,
+			IsEnabled:    true,
+			CreatedAt:    now,
+			UpdatedAt:    now,
 		}
 
 		if userID, ok := auth.UserIDFromContext(ctx); ok {
@@ -118,12 +134,15 @@ func (s *service) CreateURL(ctx context.Context, req CreateURLRequest) (*URLResp
 		}
 
 		u := &URL{
-			ID:          uuid.NewString(),
-			ShortCode:   code,
-			OriginalURL: trimmedURL,
-			ExpiresAt:   req.ExpiresAt,
-			CreatedAt:   now,
-			UpdatedAt:   now,
+			ID:           uuid.NewString(),
+			ShortCode:    code,
+			OriginalURL:  trimmedURL,
+			ExpiresAt:    req.ExpiresAt,
+			MaxAccesses:  req.MaxAccesses,
+			PasswordHash: pwdHash,
+			IsEnabled:    true,
+			CreatedAt:    now,
+			UpdatedAt:    now,
 		}
 
 		if userID, ok := auth.UserIDFromContext(ctx); ok {
@@ -155,48 +174,42 @@ func (s *service) ResolveURL(ctx context.Context, req ResolveRequest) (string, e
 
 	var urlID string
 	var originalURL string
-	var expiresAt *time.Time
 
-	// 1. Try to fetch from cache first
-	if s.cache != nil {
-		cachedURL, err := s.cache.GetURL(ctx, code)
-		if err == nil && cachedURL != nil {
-			urlID = cachedURL.ID
-			originalURL = cachedURL.OriginalURL
-			metrics.RedisCacheHitTotal.Inc()
-		} else {
-			metrics.RedisCacheMissTotal.Inc()
-		}
+	// 1. Fetch from DB
+	u, err := s.repo.GetByShortCode(ctx, code)
+	if err != nil {
+		return "", err
 	}
 
-	// 2. Cache miss, fetch from database
-	if originalURL == "" {
-		u, err := s.repo.GetByShortCode(ctx, code)
-		if err != nil {
-			return "", err
-		}
+	// 2. Enforce Link Controls
+	if !u.IsEnabled {
+		return "", ErrNotFound // Or a specific disabled error
+	}
 
-		// 3. Check expiration
-		if u.ExpiresAt != nil && time.Now().UTC().After(*u.ExpiresAt) {
+	if u.ExpiresAt != nil && time.Now().UTC().After(*u.ExpiresAt) {
+		return "", ErrExpired
+	}
+
+	if u.MaxAccesses != nil && u.AccessCount >= *u.MaxAccesses {
+		return "", ErrExpired // Effectively "Gone"
+	}
+
+	if u.PasswordHash != nil {
+		return "", ErrPasswordRequired
+	}
+
+	// 3. Atomically consume the URL now that it's validated
+	u, err = s.repo.ConsumeURL(ctx, code)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			// Concurrent consumption reached max_accesses
 			return "", ErrExpired
 		}
-
-		urlID = u.ID
-		originalURL = u.OriginalURL
-		expiresAt = u.ExpiresAt
-
-		// 4. Update cache asynchronously (or synchronously)
-		if s.cache != nil {
-			var ttl time.Duration
-			if expiresAt != nil {
-				ttl = time.Until(*expiresAt)
-			}
-			_ = s.cache.SetURL(ctx, code, &CachedURL{
-				ID:          urlID,
-				OriginalURL: originalURL,
-			}, ttl) // ignore error on set
-		}
+		return "", err
 	}
+
+	urlID = u.ID
+	originalURL = u.OriginalURL
 
 	// 5. Asynchronously record the click event in the outbox
 	// Even though it is recorded "asynchronously" relative to the redirect from the user's perspective (fire and forget),
@@ -259,6 +272,55 @@ func (s *service) ResolveURL(ctx context.Context, req ResolveRequest) (string, e
 
 	metrics.RedirectTotal.Inc()
 	return originalURL, nil
+}
+
+func (s *service) UnlockURL(ctx context.Context, shortCode, password string) (string, error) {
+	code := strings.TrimSpace(shortCode)
+	if code == "" {
+		return "", ErrNotFound
+	}
+
+	u, err := s.repo.GetByShortCode(ctx, code)
+	if err != nil {
+		return "", err
+	}
+
+	if !u.IsEnabled {
+		return "", ErrNotFound
+	}
+	if u.ExpiresAt != nil && time.Now().UTC().After(*u.ExpiresAt) {
+		return "", ErrExpired
+	}
+	if u.MaxAccesses != nil && u.AccessCount >= *u.MaxAccesses { // >= because we didn't consume it yet
+		return "", ErrExpired
+	}
+
+	if u.PasswordHash == nil || !auth.CheckPasswordHash(password, *u.PasswordHash) {
+		return "", ErrUnauthorized
+	}
+
+	// Atomically consume the URL
+	u, err = s.repo.ConsumeURL(ctx, code)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return "", ErrExpired
+		}
+		return "", err
+	}
+
+	return u.OriginalURL, nil
+}
+
+func (s *service) UpdateEnabled(ctx context.Context, shortCode string, isEnabled bool) error {
+	code := strings.TrimSpace(shortCode)
+	if code == "" {
+		return ErrNotFound
+	}
+	userID, ok := auth.UserIDFromContext(ctx)
+	if !ok {
+		return auth.ErrUnauthorized
+	}
+	return s.repo.UpdateEnabled(ctx, code, userID, isEnabled)
 }
 
 func (s *service) DeleteURL(ctx context.Context, shortCode string) error {
@@ -339,6 +401,7 @@ func (s *service) toResponse(u *URL) *URLResponse {
 		ShortURL:    fmt.Sprintf("%s/%s", s.baseURL, u.ShortCode),
 		OriginalURL: u.OriginalURL,
 		ExpiresAt:   u.ExpiresAt,
+		IsEnabled:   u.IsEnabled,
 		CreatedAt:   u.CreatedAt,
 	}
 }
