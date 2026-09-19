@@ -74,7 +74,10 @@ func (h *Handler) Redirect(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrNotFound):
 			h.writeError(w, r, http.StatusNotFound, "URL_NOT_FOUND", "The requested URL does not exist")
 		case errors.Is(err, ErrExpired):
-			h.writeError(w, r, http.StatusGone, "URL_EXPIRED", "The requested URL has expired")
+			h.writeError(w, r, http.StatusGone, "URL_EXPIRED", "The requested URL has expired or max accesses reached")
+		case errors.Is(err, ErrPasswordRequired):
+			http.ServeFile(w, r, "frontend/password.html")
+			return
 		default:
 			h.writeError(w, r, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "An internal error occurred")
 		}
@@ -146,6 +149,72 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.writeJSON(w, http.StatusOK, urls)
+}
+
+// Unlock handles POST /api/v1/urls/{short_code}/unlock
+func (h *Handler) Unlock(w http.ResponseWriter, r *http.Request) {
+	shortCode := chi.URLParam(r, "short_code")
+	if shortCode == "" {
+		h.writeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "Short code is required")
+		return
+	}
+
+	var req struct {
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.writeError(w, r, http.StatusBadRequest, "INVALID_REQUEST_BODY", "Invalid JSON payload")
+		return
+	}
+
+	originalURL, err := h.service.UnlockURL(r.Context(), shortCode, req.Password)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrNotFound):
+			h.writeError(w, r, http.StatusNotFound, "URL_NOT_FOUND", "URL not found")
+		case errors.Is(err, ErrExpired):
+			h.writeError(w, r, http.StatusGone, "URL_EXPIRED", "URL has expired")
+		case errors.Is(err, ErrUnauthorized):
+			h.writeError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid password")
+		default:
+			h.writeError(w, r, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "An internal error occurred")
+		}
+		return
+	}
+
+	h.writeJSON(w, http.StatusOK, map[string]string{"original_url": originalURL})
+}
+
+// UpdateEnabled handles PUT /api/v1/urls/{short_code}/enable
+func (h *Handler) UpdateEnabled(w http.ResponseWriter, r *http.Request) {
+	shortCode := chi.URLParam(r, "short_code")
+	if shortCode == "" {
+		h.writeError(w, r, http.StatusBadRequest, "INVALID_REQUEST", "Short code is required")
+		return
+	}
+
+	var req struct {
+		IsEnabled bool `json:"is_enabled"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.writeError(w, r, http.StatusBadRequest, "INVALID_REQUEST_BODY", "Invalid JSON payload")
+		return
+	}
+
+	err := h.service.UpdateEnabled(r.Context(), shortCode, req.IsEnabled)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrNotFound):
+			h.writeError(w, r, http.StatusNotFound, "URL_NOT_FOUND", "URL not found")
+		case errors.Is(err, auth.ErrUnauthorized):
+			h.writeError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "Unauthorized")
+		default:
+			h.writeError(w, r, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "An internal error occurred")
+		}
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) writeJSON(w http.ResponseWriter, status int, data any) {

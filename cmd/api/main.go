@@ -147,6 +147,8 @@ func main() {
 	r.With(auth.RequireAuth(tokenService), rateLimiter).Get("/api/v1/auth/me", authHandler.GetProfile)
 	r.With(auth.RequireAuth(tokenService), rateLimiter).Delete("/api/v1/urls/{short_code}", urlHandler.Delete)
 	r.With(auth.RequireAuth(tokenService), rateLimiter).Get("/api/v1/urls/{short_code}/analytics", urlHandler.GetAnalytics)
+	r.With(auth.RequireAuth(tokenService), rateLimiter).Put("/api/v1/urls/{short_code}/enable", urlHandler.UpdateEnabled)
+	r.With(rateLimiter).Post("/api/v1/urls/{short_code}/unlock", urlHandler.Unlock)
 	r.With(rateLimiter).Get("/{short_code}", urlHandler.Redirect)
 
 	// 9. HTTP server startup
