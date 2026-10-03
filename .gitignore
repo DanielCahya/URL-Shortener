@@ -20,3 +20,11 @@ bin/
 .vscode/
 *.swp
 *~
+
+# Frontend
+web/node_modules/
+web/dist/
+web/.eslintcache
+web/dist-ssr/
+web/coverage/
+web/.vite/

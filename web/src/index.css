@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background text-textMain antialiased min-h-screen selection:bg-primary/30 selection:text-primary;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-surface/50 backdrop-blur-xl border border-surfaceHighlight rounded-2xl shadow-2xl;
+  }
+  
+  .input-field {
+    @apply w-full bg-background border border-surfaceHighlight rounded-lg px-4 py-3 text-textMain placeholder-textMuted/50 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-background font-semibold px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors shadow-[0_0_15px_rgba(100,255,218,0.3)] hover:shadow-[0_0_25px_rgba(100,255,218,0.5)];
+  }
+  
+  .btn-secondary {
+    @apply bg-surfaceHighlight text-textMain font-medium px-6 py-3 rounded-lg hover:bg-surfaceHighlight/80 transition-colors border border-surfaceHighlight/50;
+  }
+}
+
+/* Custom Scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: theme('colors.background');
+}
+::-webkit-scrollbar-thumb {
+  background: theme('colors.surfaceHighlight');
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: theme('colors.textMuted');
+}
