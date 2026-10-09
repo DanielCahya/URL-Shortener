@@ -114,7 +114,7 @@ export function Dashboard() {
   };
 
   const copyToClipboard = (alias) => {
-    const url = `http://localhost:8080/${alias}`;
+    const url = `${window.location.origin}/${alias}`;
     navigator.clipboard.writeText(url);
     setCopiedAlias(alias);
     setTimeout(() => setCopiedAlias(null), 2000);
@@ -149,7 +149,7 @@ export function Dashboard() {
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1">
                 <Input 
-                  placeholder="https://very-long-url.com/some/path"
+                  placeholder="Enter the URL you want to shorten..."
                   icon={LinkIcon}
                   value={originalUrl}
                   onChange={(e) => setOriginalUrl(e.target.value)}
@@ -221,7 +221,7 @@ export function Dashboard() {
               >
                 <div className="flex-1 min-w-0 pr-4">
                   <div className="flex items-center gap-2 mb-1">
-                    <a href={`http://localhost:8080/${link.short_code}`} target="_blank" rel="noreferrer" className={`text-lg font-semibold hover:underline ${link.is_enabled === false ? 'text-textMuted' : 'text-primary'}`}>
+                    <a href={`${window.location.origin}/${link.short_code}`} target="_blank" rel="noreferrer" className={`text-lg font-semibold hover:underline ${link.is_enabled === false ? 'text-textMuted' : 'text-primary'}`}>
                       /{link.short_code}
                     </a>
                     {link.password_hash && <Lock size={14} className="text-yellow-500" title="Password Protected" />}
@@ -241,7 +241,7 @@ export function Dashboard() {
                     variant="ghost" 
                     className="p-2 h-auto" 
                     onClick={() => {
-                      setQrModalUrl(`http://localhost:8080/${link.short_code}`);
+                      setQrModalUrl(`${window.location.origin}/${link.short_code}`);
                       setQrModalAlias(link.short_code);
                     }}
                     title="QR Code"

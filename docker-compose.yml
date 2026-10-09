@@ -95,5 +95,16 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  frontend:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: urlshortener-frontend
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    depends_on:
+      - api
+
 volumes:
   urlshortener_pgdata:

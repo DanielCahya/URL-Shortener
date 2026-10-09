@@ -45,7 +45,7 @@ export function Landing() {
         </motion.h1>
         
         <motion.p variants={item} className="text-xl text-textMuted max-w-2xl mx-auto">
-          A high-performance programmable URL shortener built for developers and teams. Track clicks, protect with passwords, and manage access limits.
+          A programmable URL shortener built for developers and teams. Track clicks, protect with passwords, and manage access limits.
         </motion.p>
         
         <motion.div variants={item} className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 pb-20">
@@ -73,18 +73,18 @@ export function Landing() {
             title="Fast Edge Delivery"
             desc="Built on Go and Redis, our redirects are optimized for low latency and high concurrency."
           />
-          <BentoCard 
+            <BentoCard 
             className="md:col-span-1 md:row-span-2 flex flex-col"
             icon={<BarChart3 className="text-secondary w-8 h-8" />}
             title="Analytics"
-            desc="Track devices, browsers, and geographic locations to make data-driven decisions."
+            desc="Track devices, browsers, and geographic locations to make data driven decisions."
             extra={<Globe className="w-full h-auto text-surfaceHighlight mt-auto opacity-50" />}
           />
           <BentoCard 
             className="md:col-span-1 md:row-span-1"
             icon={<Lock className="text-yellow-400 w-8 h-8" />}
             title="Password Protection"
-            desc="Secure sensitive links with bcrypt-hashed passwords."
+            desc="Secure sensitive links with bcrypt hashed passwords."
           />
           <BentoCard 
             className="md:col-span-1 md:row-span-1"
