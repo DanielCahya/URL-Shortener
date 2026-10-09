@@ -8,6 +8,7 @@ bin/
 
 # Test binary, built with `go test -c`
 *.test
+DEPLOYMENT.md
 
 # Output of the go coverage tool
 *.out
