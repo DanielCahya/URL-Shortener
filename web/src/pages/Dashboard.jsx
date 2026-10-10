@@ -247,7 +247,7 @@ export function Dashboard() {
                     {link.password_hash && <Lock size={14} className="text-yellow-500" title="Password Protected" />}
                     {link.is_enabled === false && <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full border border-red-500/30">Disabled</span>}
                   </div>
-                  <p className="text-textMuted text-sm truncate" title={link.original_url}>
+                  <p className="text-textMuted text-sm break-all line-clamp-2" title={link.original_url}>
                     {link.original_url}
                   </p>
                   <div className="flex gap-4 mt-2 text-xs text-textMuted">

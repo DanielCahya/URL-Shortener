@@ -89,5 +89,50 @@ jobs:
       - name: Build Binary
         run: go build -v ./cmd/api
 
-      - name: Test Docker Build
-        run: docker build -t url-shortener-api:test .
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.CR_PAT }}
+
+      - name: Build and push API Docker image
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/danielcahya/url-shortener-api:latest
+
+      - name: Build and push Frontend Docker image
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: docker/build-push-action@v5
+        with:
+          context: ./web
+          push: true
+          tags: ghcr.io/danielcahya/url-shortener-frontend:latest
+
+
+  deploy:
+    name: Deploy to EC2
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 40m
+          script: |
+            cd /var/www/html/URL-Shortener
+            sudo git fetch origin
+            sudo git reset --hard origin/main
+            # Log in to GHCR to pull the private packages
+            echo "${{ secrets.CR_PAT }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            sudo docker-compose pull
+            sudo docker-compose stop api frontend
+            sudo docker-compose rm -f api frontend
+            sudo docker-compose up -d

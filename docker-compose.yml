@@ -73,6 +73,7 @@ services:
   #     - GF_USERS_ALLOW_SIGN_UP=false
 
   api:
+    image: ghcr.io/danielcahya/url-shortener-api:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -96,6 +97,7 @@ services:
         condition: service_healthy
 
   frontend:
+    image: ghcr.io/danielcahya/url-shortener-frontend:latest
     build:
       context: ./web
       dockerfile: Dockerfile
