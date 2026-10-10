@@ -17,7 +17,7 @@ COPY . .
 # Build the Go application as a static binary
 # CGO_ENABLED=0 ensures it's statically linked, reducing dependencies on the target OS
 # -ldflags="-w -s" strips debugging information, further shrinking the binary size
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o api ./cmd/api
+RUN GOMAXPROCS=1 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o api ./cmd/api
 
 # Stage 2: Create the minimal final image
 # Scratch is a special empty image in Docker. It contains literally nothing, not even a shell!
