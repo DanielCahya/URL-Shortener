@@ -91,3 +91,22 @@ jobs:
 
       - name: Test Docker Build
         run: docker build -t url-shortener-api:test .
+
+  deploy:
+    name: Deploy to EC2
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /var/www/html/URL-Shortener
+            sudo git fetch origin
+            sudo git reset --hard origin/main
+            sudo docker container prune -f
+            sudo docker-compose up -d --build
