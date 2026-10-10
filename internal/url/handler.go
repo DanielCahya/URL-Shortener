@@ -76,7 +76,7 @@ func (h *Handler) Redirect(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrExpired):
 			h.writeError(w, r, http.StatusGone, "URL_EXPIRED", "The requested URL has expired or max accesses reached")
 		case errors.Is(err, ErrPasswordRequired):
-			http.ServeFile(w, r, "frontend/password.html")
+			http.Redirect(w, r, "/p/"+shortCode, http.StatusTemporaryRedirect)
 			return
 		default:
 			h.writeError(w, r, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "An internal error occurred")

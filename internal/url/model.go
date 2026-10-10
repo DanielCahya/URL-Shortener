@@ -31,6 +31,7 @@ type URL struct {
 	MaxAccesses  *int       `json:"max_accesses"`
 	AccessCount  int        `json:"access_count"`
 	PasswordHash *string    `json:"-"`
+	WebhookURL   *string    `json:"webhook_url"`
 	IsEnabled    bool       `json:"is_enabled"`
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`
@@ -44,6 +45,7 @@ type CreateURLRequest struct {
 	ExpiresAt   *time.Time `json:"expires_at"`
 	MaxAccesses *int       `json:"max_accesses"`
 	Password    *string    `json:"password"`
+	WebhookURL  *string    `json:"webhook_url"`
 }
 
 // URLResponse represents the public API representation of a shortened URL.
@@ -53,6 +55,7 @@ type URLResponse struct {
 	ShortURL    string     `json:"short_url"`
 	OriginalURL string     `json:"original_url"`
 	ExpiresAt   *time.Time `json:"expires_at"`
+	WebhookURL  *string    `json:"webhook_url"`
 	IsEnabled   bool       `json:"is_enabled"`
 	CreatedAt   time.Time  `json:"created_at"`
 }

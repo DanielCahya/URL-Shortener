@@ -1,9 +1,11 @@
 package consumer
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/DanielCahya/url-shortener/internal/metrics"
@@ -71,6 +73,24 @@ func (c *AnalyticsConsumer) processDelivery(ctx context.Context, d amqp.Delivery
 		// Actually, if DB is down, it will go to DLQ.
 		_ = d.Nack(false, false)
 		return
+	}
+
+	// Fire Webhook if present
+	if event.WebhookURL != nil && *event.WebhookURL != "" {
+		go func(webhookUrl string, payload []byte) {
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, webhookUrl, bytes.NewBuffer(payload))
+			if err == nil {
+				req.Header.Set("Content-Type", "application/json")
+				client := &http.Client{Timeout: 5 * time.Second}
+				resp, err := client.Do(req)
+				if err != nil {
+					log.Printf("Failed to deliver webhook to %s: %v", webhookUrl, err)
+				} else {
+					_ = resp.Body.Close()
+					log.Printf("Delivered webhook to %s (Status: %d)", webhookUrl, resp.StatusCode)
+				}
+			}
+		}(*event.WebhookURL, d.Body)
 	}
 
 	// Success, acknowledge the message

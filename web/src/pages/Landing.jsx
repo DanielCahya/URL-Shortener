@@ -45,7 +45,7 @@ export function Landing() {
         </motion.h1>
         
         <motion.p variants={item} className="text-xl text-textMuted max-w-2xl mx-auto">
-          A programmable URL shortener built for developers and teams. Track clicks, protect with passwords, and manage access limits.
+          A reliable URL management tool. Track clicks, protect with passwords, and manage access limits.
         </motion.p>
         
         <motion.div variants={item} className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 pb-20">

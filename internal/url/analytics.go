@@ -13,6 +13,7 @@ type ClickEvent struct {
 	Browser         *string   `json:"browser,omitempty"`
 	OperatingSystem *string   `json:"operating_system,omitempty"`
 	Referrer        *string   `json:"referrer,omitempty"`
+	WebhookURL      *string   `json:"webhook_url,omitempty"`
 	Timestamp       time.Time `json:"timestamp"`
 }
 
