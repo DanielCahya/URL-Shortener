@@ -33,8 +33,8 @@ func NewPostgresURLRepository(pool *pgxpool.Pool) URLRepository {
 
 func (r *postgresURLRepository) Create(ctx context.Context, u *url.URL) error {
 	query := `
-		INSERT INTO urls (id, user_id, short_code, original_url, expires_at, max_accesses, access_count, password_hash, is_enabled, created_at, updated_at, deleted_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		INSERT INTO urls (id, user_id, short_code, original_url, expires_at, max_accesses, webhook_url, access_count, password_hash, is_enabled, created_at, updated_at, deleted_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 	`
 	_, err := r.pool.Exec(ctx, query,
 		u.ID,
@@ -43,6 +43,7 @@ func (r *postgresURLRepository) Create(ctx context.Context, u *url.URL) error {
 		u.OriginalURL,
 		u.ExpiresAt,
 		u.MaxAccesses,
+		u.WebhookURL,
 		u.AccessCount,
 		u.PasswordHash,
 		u.IsEnabled,
@@ -63,7 +64,7 @@ func (r *postgresURLRepository) Create(ctx context.Context, u *url.URL) error {
 
 func (r *postgresURLRepository) GetByShortCode(ctx context.Context, shortCode string) (*url.URL, error) {
 	query := `
-		SELECT id, user_id, short_code, original_url, expires_at, max_accesses, access_count, password_hash, is_enabled, created_at, updated_at, deleted_at
+		SELECT id, user_id, short_code, original_url, expires_at, max_accesses, webhook_url, access_count, password_hash, is_enabled, created_at, updated_at, deleted_at
 		FROM urls
 		WHERE short_code = $1 AND deleted_at IS NULL
 	`
@@ -77,6 +78,7 @@ func (r *postgresURLRepository) GetByShortCode(ctx context.Context, shortCode st
 		&u.OriginalURL,
 		&u.ExpiresAt,
 		&u.MaxAccesses,
+		&u.WebhookURL,
 		&u.AccessCount,
 		&u.PasswordHash,
 		&u.IsEnabled,
@@ -119,7 +121,7 @@ func (r *postgresURLRepository) ConsumeURL(ctx context.Context, shortCode string
 		WHERE short_code = $1 
 		  AND deleted_at IS NULL
 		  AND (max_accesses IS NULL OR access_count < max_accesses)
-		RETURNING id, user_id, short_code, original_url, expires_at, max_accesses, access_count, password_hash, is_enabled, created_at, updated_at, deleted_at
+		RETURNING id, user_id, short_code, original_url, expires_at, max_accesses, webhook_url, access_count, password_hash, is_enabled, created_at, updated_at, deleted_at
 	`
 	row := r.pool.QueryRow(ctx, query, shortCode)
 
@@ -131,6 +133,7 @@ func (r *postgresURLRepository) ConsumeURL(ctx context.Context, shortCode string
 		&u.OriginalURL,
 		&u.ExpiresAt,
 		&u.MaxAccesses,
+		&u.WebhookURL,
 		&u.AccessCount,
 		&u.PasswordHash,
 		&u.IsEnabled,
@@ -168,7 +171,7 @@ func (r *postgresURLRepository) UpdateEnabled(ctx context.Context, shortCode str
 
 func (r *postgresURLRepository) ListByUserID(ctx context.Context, userID uuid.UUID) ([]*url.URL, error) {
 	query := `
-		SELECT id, user_id, short_code, original_url, expires_at, max_accesses, access_count, password_hash, is_enabled, created_at, updated_at, deleted_at
+		SELECT id, user_id, short_code, original_url, expires_at, max_accesses, webhook_url, access_count, password_hash, is_enabled, created_at, updated_at, deleted_at
 		FROM urls
 		WHERE user_id = $1 AND deleted_at IS NULL
 		ORDER BY created_at DESC
@@ -189,6 +192,7 @@ func (r *postgresURLRepository) ListByUserID(ctx context.Context, userID uuid.UU
 			&u.OriginalURL,
 			&u.ExpiresAt,
 			&u.MaxAccesses,
+			&u.WebhookURL,
 			&u.AccessCount,
 			&u.PasswordHash,
 			&u.IsEnabled,

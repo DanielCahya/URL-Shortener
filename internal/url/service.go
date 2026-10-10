@@ -105,6 +105,7 @@ func (s *service) CreateURL(ctx context.Context, req CreateURLRequest) (*URLResp
 			OriginalURL:  trimmedURL,
 			ExpiresAt:    req.ExpiresAt,
 			MaxAccesses:  req.MaxAccesses,
+			WebhookURL:   req.WebhookURL,
 			PasswordHash: pwdHash,
 			IsEnabled:    true,
 			CreatedAt:    now,
@@ -139,6 +140,7 @@ func (s *service) CreateURL(ctx context.Context, req CreateURLRequest) (*URLResp
 			OriginalURL:  trimmedURL,
 			ExpiresAt:    req.ExpiresAt,
 			MaxAccesses:  req.MaxAccesses,
+			WebhookURL:   req.WebhookURL,
 			PasswordHash: pwdHash,
 			IsEnabled:    true,
 			CreatedAt:    now,
@@ -246,6 +248,10 @@ func (s *service) ResolveURL(ctx context.Context, req ResolveRequest) (string, e
 		EventID:   uuid.NewString(),
 		URLID:     urlID,
 		Timestamp: time.Now().UTC(),
+	}
+
+	if u.WebhookURL != nil {
+		clickEvent.WebhookURL = u.WebhookURL
 	}
 
 	if req.IPCountry != "" {
@@ -401,6 +407,7 @@ func (s *service) toResponse(u *URL) *URLResponse {
 		ShortURL:    fmt.Sprintf("%s/%s", s.baseURL, u.ShortCode),
 		OriginalURL: u.OriginalURL,
 		ExpiresAt:   u.ExpiresAt,
+		WebhookURL:  u.WebhookURL,
 		IsEnabled:   u.IsEnabled,
 		CreatedAt:   u.CreatedAt,
 	}

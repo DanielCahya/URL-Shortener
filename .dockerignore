@@ -1,0 +1,6 @@
+web
+*.exe
+.git
+.idea
+.vscode
+*.log

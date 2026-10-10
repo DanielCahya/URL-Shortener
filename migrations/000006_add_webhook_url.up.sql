@@ -1,0 +1,1 @@
+ALTER TABLE urls ADD COLUMN webhook_url VARCHAR(2048);

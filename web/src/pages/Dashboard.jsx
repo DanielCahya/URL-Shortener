@@ -14,6 +14,8 @@ export function Dashboard() {
   const [customAlias, setCustomAlias] = useState("");
   const [password, setPassword] = useState("");
   const [maxAccesses, setMaxAccesses] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [webhookUrl, setWebhookUrl] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [loading, setLoading] = useState(false);
   const [copiedAlias, setCopiedAlias] = useState(null);
@@ -55,6 +57,11 @@ export function Dashboard() {
       if (customAlias) payload.custom_alias = customAlias;
       if (password) payload.password = password;
       if (maxAccesses) payload.max_accesses = parseInt(maxAccesses);
+      if (webhookUrl) payload.webhook_url = webhookUrl;
+      if (expiresAt) {
+        // Convert to RFC3339 format (UTC)
+        payload.expires_at = new Date(expiresAt).toISOString();
+      }
 
       const res = await fetch("/api/v1/urls", {
         method: "POST",
@@ -70,6 +77,8 @@ export function Dashboard() {
         setCustomAlias("");
         setPassword("");
         setMaxAccesses("");
+        setExpiresAt("");
+        setWebhookUrl("");
         setShowAdvanced(false);
         fetchLinks();
       }
@@ -195,6 +204,17 @@ export function Dashboard() {
                   value={maxAccesses}
                   onChange={(e) => setMaxAccesses(e.target.value)}
                   min="1"
+                />
+                <Input 
+                  type="datetime-local"
+                  placeholder="Expires At" 
+                  value={expiresAt}
+                  onChange={(e) => setExpiresAt(e.target.value)}
+                />
+                <Input 
+                  placeholder="Webhook URL" 
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
                 />
               </motion.div>
             )}
