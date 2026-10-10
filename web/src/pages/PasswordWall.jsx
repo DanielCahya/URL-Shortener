@@ -17,26 +17,23 @@ export function PasswordWall() {
     setError("");
 
     try {
-      // Create a form to POST to the original backend endpoint that handles the password verification and redirect
-      // Since the backend handles the redirect via a 302, we can just submit a native form
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = `http://localhost:8080/${alias}`;
-      
-      const pwdInput = document.createElement('input');
-      pwdInput.type = 'hidden';
-      pwdInput.name = 'password';
-      pwdInput.value = password;
-      
-      form.appendChild(pwdInput);
-      document.body.appendChild(form);
-      form.submit();
-      
-      // Note: If the password is wrong, the backend will return a 401/403 page.
-      // A more robust React approach would be to send an API request to verify, then redirect.
-      // But for now, we rely on the backend's standard behavior.
+      const res = await fetch(`/api/v1/urls/${alias}/unlock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Successfully unlocked, redirect to the real URL!
+        window.location.href = data.original_url;
+      } else {
+        const errData = await res.json();
+        setError(errData.error?.message || "Incorrect password or link expired");
+        setLoading(false);
+      }
     } catch (err) {
-      setError("Failed to verify password");
+      setError("Failed to verify password. Please try again.");
       setLoading(false);
     }
   };
